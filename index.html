@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Assistance Tech Wi‑Fi</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column, phone-first; header band, service chips, request form, contact strip */
+:root{
+  --bg:#f3f6f7; --surface:#ffffff; --ink:#0f2a33; --muted:#557079; --line:#d5e0e3;
+  --accent:#0b7a8a; --accent-ink:#ffffff; --signal:#e39a12; --wa:#1c8c4e;
+  --display:"Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1a1f; --surface:#132730; --ink:#e6f1f3; --muted:#93acb3; --line:#24404a;
+  --accent:#3cb4c4; --accent-ink:#06222a; --signal:#f2b544; --wa:#3cc47a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1a1f; --surface:#132730; --ink:#e6f1f3; --muted:#93acb3; --line:#24404a;
+  --accent:#3cb4c4; --accent-ink:#06222a; --signal:#f2b544; --wa:#3cc47a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:1.15rem}
+.bars{display:flex;align-items:flex-end;gap:3px;height:22px}
+.bars i{display:block;width:5px;background:var(--accent);border-radius:1px}
+.bars i:nth-child(1){height:30%}.bars i:nth-child(2){height:55%}.bars i:nth-child(3){height:80%}.bars i:nth-child(4){height:100%;background:var(--signal)}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button{border:0;background:transparent;color:var(--muted);font:700 .85rem var(--body);padding:6px 12px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+h1{font-family:var(--display);font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.1;margin:8px 0 0;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+h2{font-family:var(--display);font-size:1.25rem;margin:0}
+.eyebrow{font:500 .75rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--signal)}
+section{display:flex;flex-direction:column;gap:12px}
+.services{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:460px){.services{grid-template-columns:1fr}}
+.svc{text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;color:var(--ink);font:inherit;display:flex;flex-direction:column;gap:2px}
+.svc b{font-family:var(--display);font-size:1rem}
+.svc span{color:var(--muted);font-size:.88rem}
+.svc .tag{font:500 .7rem var(--mono);color:var(--accent);letter-spacing:.05em;text-transform:uppercase}
+.svc[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.svc:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+form{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:.92rem;min-width:0}
+input,select,textarea{font:inherit;font-weight:400;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+textarea{min-height:96px;resize:vertical}
+.radios{display:flex;flex-wrap:wrap;gap:8px}
+.radios label{flex-direction:row;align-items:center;gap:6px;font-weight:400;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.radios input{width:auto}
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+legend{font-weight:700;font-size:.92rem;margin-bottom:6px}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:14px;font:700 1rem var(--display);cursor:pointer}
+.err{color:#c0392b;font-size:.9rem;margin:0}
+.result{background:var(--surface);border:1.5px solid var(--wa);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.wa{display:block;text-align:center;background:var(--wa);color:#fff;text-decoration:none;border-radius:10px;padding:14px;font:700 1.05rem var(--display)}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font:500 .85rem var(--mono);margin:0}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 12px;font:700 .9rem var(--body);cursor:pointer;align-self:flex-start}
+.contact{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:.92rem}
+.num{font:500 1rem var(--mono);color:var(--ink);user-select:all}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="top">
+      <div class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="bizName"></span></div>
+      <div class="lang" role="group" aria-label="Langue / Language">
+        <button type="button" id="btnFr" aria-pressed="true">FR</button>
+        <button type="button" id="btnEn" aria-pressed="false">EN</button>
+      </div>
+    </div>
+    <h1 data-t="title"></h1>
+    <p class="lede" data-t="lede"></p>
+  </header>
+
+  <section>
+    <div class="eyebrow" data-t="step1"></div>
+    <h2 data-t="svcTitle"></h2>
+    <div class="services" id="services"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow" data-t="step2"></div>
+    <h2 data-t="formTitle"></h2>
+    <form id="form" novalidate>
+      <div class="row">
+        <label for="f-name"><span data-t="name"></span><input id="f-name" autocomplete="name" required></label>
+        <label for="f-phone"><span data-t="phone"></span><input id="f-phone" type="tel" inputmode="tel" autocomplete="tel" required></label>
+      </div>
+      <div class="row">
+        <label for="f-service"><span data-t="service"></span><select id="f-service" required></select></label>
+        <label for="f-place"><span data-t="place"></span><input id="f-place"></label>
+      </div>
+      <label for="f-device"><span data-t="device"></span><input id="f-device"></label>
+      <label for="f-desc"><span data-t="desc"></span><textarea id="f-desc" required></textarea></label>
+      <fieldset>
+        <legend data-t="how"></legend>
+        <div class="radios">
+          <label><input type="radio" name="how" id="how-remote" value="remote" checked><span data-t="remote"></span></label>
+          <label><input type="radio" name="how" id="how-site" value="site"><span data-t="site"></span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend data-t="uses"></legend>
+        <div class="radios">
+          <label><input type="radio" name="uses" id="uses-phone" value="usePhone" checked><span data-t="usePhone"></span></label>
+          <label><input type="radio" name="uses" id="uses-pc" value="usePc"><span data-t="usePc"></span></label>
+        </div>
+      </fieldset>
+      <div class="row">
+        <label for="f-date"><span data-t="date"></span><input id="f-date" type="date"></label>
+        <label for="f-time"><span data-t="time"></span><select id="f-time"></select></label>
+      </div>
+      <fieldset>
+        <legend data-t="urgency"></legend>
+        <div class="radios">
+          <label><input type="radio" name="urg" id="urg-today" value="today"><span data-t="today"></span></label>
+          <label><input type="radio" name="urg" id="urg-week" value="week" checked><span data-t="week"></span></label>
+          <label><input type="radio" name="urg" id="urg-any" value="any"><span data-t="any"></span></label>
+        </div>
+      </fieldset>
+      <p class="note" data-t="owner"></p>
+      <p class="err" id="err" hidden></p>
+      <button class="primary" type="submit" data-t="submit"></button>
+    </form>
+
+    <div class="result" id="result" hidden>
+      <h2 data-t="readyTitle"></h2>
+      <p class="note" data-t="readyText"></p>
+      <a class="wa" id="waLink" href="#" target="_blank" rel="noopener" data-t="sendWa"></a>
+      <pre id="msg"></pre>
+      <button type="button" class="ghost" id="copy" data-t="copy"></button>
+      <button type="button" class="ghost" id="again" data-t="again"></button>
+    </div>
+  </section>
+
+  <div class="contact">
+    <span data-t="contact"></span>
+    <span class="num" id="numShow"></span>
+  </div>
+</div>
+
+<script>
+/* ===== À MODIFIER / EDIT HERE ===== */
+const BUSINESS_NAME = "Assistance Tech Wifi";
+const WHATSAPP_NUMBER = "224624164483"; // indicatif pays + numéro, sans + ni espaces
+/* ================================== */
+
+const SERVICES = [
+  {id:"wifi_install", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Installation Wi‑Fi zone","Routeur, MikroTik, hotspot avec tickets"], en:["Wi‑Fi zone installation","Router, MikroTik, voucher hotspot"]},
+  {id:"wifi_fix", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Dépannage & maintenance Wi‑Fi","Connexion lente, coupures, configuration"], en:["Wi‑Fi repair & maintenance","Slow connection, drops, configuration"]},
+  {id:"vouchers", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Système de tickets / vouchers","Mikhmon, profils, impression des tickets"], en:["Ticket / voucher system","Mikhmon, profiles, printing vouchers"]},
+  {id:"mikrotik", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Configuration MikroTik uniquement","Vous avez le MikroTik, je le configure"], en:["MikroTik configuration only","You have the MikroTik, I configure it"]},
+  {id:"ap", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Configuration point d'accès uniquement","Réglage de vos points d'accès (AP)"], en:["Access point configuration only","Setting up your access points (AP)"]},
+  {id:"tech_help", tag:{fr:"Techniciens",en:"Technicians"}, fr:["Aide aux techniciens","Installer logiciels de flashing, drivers USB, à distance"], en:["Help for technicians","Install flashing tools and USB drivers, remotely"]},
+  {id:"flash", tag:{fr:"Téléphone",en:"Phone"}, fr:["Flashing / logiciel téléphone","Bootloop, bloqué sur logo, mise à jour"], en:["Phone flashing / software","Bootloop, stuck on logo, updates"]},
+  {id:"unlock", tag:{fr:"Téléphone",en:"Phone"}, fr:["Déblocage réseau","Pour accepter d'autres cartes SIM (propriétaire uniquement)"], en:["Network unlock","Use other SIM cards (owner only)"]},
+];
+
+const T = {
+fr:{title:"Besoin d'aide ? Envoyez votre demande.",lede:"Wi‑Fi zone, flashing de téléphone, déblocage, ou aide pour techniciens. Remplissez le formulaire et envoyez‑le directement sur WhatsApp.",
+step1:"Étape 1",svcTitle:"Choisissez un service",step2:"Étape 2",formTitle:"Décrivez votre problème",
+name:"Votre nom",phone:"Votre numéro WhatsApp",service:"Service",place:"Quartier / ville",device:"Appareil (marque et modèle)",desc:"Expliquez le problème",
+how:"Intervention",remote:"À distance (AnyDesk / UltraViewer / WhatsApp)",uses:"Vous utilisez",date:"Date souhaitée",time:"Heure souhaitée",anyTime:"N'importe quelle heure",usePhone:"Téléphone",usePc:"Ordinateur",site:"Sur place",urgency:"Urgence",today:"Aujourd'hui",week:"Cette semaine",any:"Pas pressé",
+owner:"Pour le flashing et le déblocage, il faut être le propriétaire du téléphone (boîte, facture ou pièce d'identité).",
+submit:"Préparer ma demande",readyTitle:"Votre demande est prête",readyText:"Appuyez sur le bouton vert pour ouvrir WhatsApp, puis appuyez sur Envoyer. Si WhatsApp ne s'ouvre pas, copiez le message et envoyez‑le au numéro ci‑dessous.",
+sendWa:"Ouvrir WhatsApp",copy:"Copier le message",copied:"Message copié",again:"Nouvelle demande",contact:"WhatsApp :",
+errReq:"Remplissez votre nom, votre numéro, le service et la description.",
+m:{head:"Nouvelle demande d'assistance",name:"Nom",phone:"Téléphone",service:"Service",place:"Lieu",device:"Appareil",how:"Intervention",uses:"Utilise",when:"Rendez-vous",at:"à",urg:"Urgence",desc:"Problème"}},
+en:{title:"Need help? Send your request.",lede:"Wi‑Fi zones, phone flashing, unlocking, or help for technicians. Fill in the form and send it straight to WhatsApp.",
+step1:"Step 1",svcTitle:"Choose a service",step2:"Step 2",formTitle:"Describe your problem",
+name:"Your name",phone:"Your WhatsApp number",service:"Service",place:"Area / town",device:"Device (brand and model)",desc:"Explain the problem",
+how:"Where",remote:"Remote (AnyDesk / UltraViewer / WhatsApp)",uses:"You are using",date:"Preferred date",time:"Preferred time",anyTime:"Any time",usePhone:"Phone",usePc:"Computer",site:"On site",urgency:"Urgency",today:"Today",week:"This week",any:"No rush",
+owner:"For flashing and unlocking, you must be the phone's owner (box, receipt or ID).",
+submit:"Prepare my request",readyTitle:"Your request is ready",readyText:"Tap the green button to open WhatsApp, then tap Send. If WhatsApp doesn't open, copy the message and send it to the number below.",
+sendWa:"Open WhatsApp",copy:"Copy message",copied:"Message copied",again:"New request",contact:"WhatsApp:",
+errReq:"Please fill in your name, number, service and description.",
+m:{head:"New help request",name:"Name",phone:"Phone",service:"Service",place:"Place",device:"Device",how:"Where",uses:"Using",when:"Appointment",at:"at",urg:"Urgency",desc:"Problem"}}
+};
+
+let lang="fr", selected="";
+try{ const s=localStorage.getItem("lang"); if(s==="en"||s==="fr") lang=s; }catch(e){}
+const $=id=>document.getElementById(id);
+$("bizName").textContent=BUSINESS_NAME;
+$("numShow").textContent="+224 624 16 44 83";
+try{ const n=new Date(); $("f-date").min=new Date(n-n.getTimezoneOffset()*6e4).toISOString().slice(0,10); }catch(e){}
+
+function render(){
+  const t=T[lang];
+  document.documentElement.lang=lang;
+  document.querySelectorAll("[data-t]").forEach(el=>{ const k=el.dataset.t; if(t[k]) el.textContent=t[k]; });
+  $("btnFr").setAttribute("aria-pressed",lang==="fr"); $("btnEn").setAttribute("aria-pressed",lang==="en");
+  const box=$("services"); box.innerHTML="";
+  SERVICES.forEach(s=>{
+    const b=document.createElement("button"); b.type="button"; b.className="svc"; b.setAttribute("aria-pressed",selected===s.id);
+    const tag=document.createElement("span"); tag.className="tag"; tag.textContent=s.tag[lang];
+    const n=document.createElement("b"); n.textContent=s[lang][0];
+    const d=document.createElement("span"); d.textContent=s[lang][1];
+    b.append(tag,n,d); b.onclick=()=>{selected=s.id; $("f-service").value=s.id; render(); $("f-name").focus();};
+    box.append(b);
+  });
+  const sel=$("f-service"), cur=sel.value||selected; sel.innerHTML="";
+  const ph=document.createElement("option"); ph.value=""; ph.textContent="—"; sel.append(ph);
+  SERVICES.forEach(s=>{const o=document.createElement("option"); o.value=s.id; o.textContent=s[lang][0]; sel.append(o);});
+  sel.value=cur;
+  const tsel=$("f-time"), tcur=tsel.value; tsel.innerHTML="";
+  const t0=document.createElement("option"); t0.value=""; t0.textContent=t.anyTime; tsel.append(t0);
+  for(let h=7;h<=22;h++){ const v=String(h).padStart(2,"0")+":00"; const o=document.createElement("option"); o.value=v; o.textContent=v; tsel.append(o); }
+  tsel.value=tcur;
+  if(!$("result").hidden) buildMessage();
+}
+function setLang(l){lang=l; try{localStorage.setItem("lang",l);}catch(e){} render();}
+$("btnFr").onclick=()=>setLang("fr"); $("btnEn").onclick=()=>setLang("en");
+$("f-service").onchange=e=>{selected=e.target.value; render();};
+
+function radio(name){const r=document.querySelector(`input[name="${name}"]:checked`); return r?r.value:"";}
+function buildMessage(){
+  const t=T[lang], m=t.m, svc=SERVICES.find(s=>s.id===$("f-service").value);
+  const lines=[`*${m.head}* (${BUSINESS_NAME})`,
+    `${m.name}: ${$("f-name").value.trim()}`,
+    `${m.phone}: ${$("f-phone").value.trim()}`,
+    `${m.service}: ${svc?svc[lang][0]:""}`];
+  if($("f-place").value.trim()) lines.push(`${m.place}: ${$("f-place").value.trim()}`);
+  if($("f-device").value.trim()) lines.push(`${m.device}: ${$("f-device").value.trim()}`);
+  const d=$("f-date").value, tm=$("f-time").value;
+  if(d||tm){ let ds=""; if(d){ const [y,mo,da]=d.split("-"); ds=`${da}/${mo}/${y}`; } lines.push(`${m.when}: ${ds}${ds&&tm?" "+m.at+" ":""}${tm}`); }
+  lines.push(`${m.how}: ${t[radio("how")]}`, `${m.uses}: ${t[radio("uses")]}`, `${m.urg}: ${t[radio("urg")]}`, `${m.desc}: ${$("f-desc").value.trim()}`);
+  const text=lines.join("\n");
+  $("msg").textContent=text;
+  $("waLink").href="https://wa.me/"+WHATSAPP_NUMBER+"?text="+encodeURIComponent(text);
+}
+$("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const ok=$("f-name").value.trim()&&$("f-phone").value.trim()&&$("f-service").value&&$("f-desc").value.trim();
+  if(!ok){ $("err").textContent=T[lang].errReq; $("err").hidden=false; return; }
+  $("err").hidden=true; buildMessage(); $("form").hidden=true; $("result").hidden=false; $("waLink").focus();
+});
+$("copy").onclick=()=>{
+  const text=$("msg").textContent;
+  const done=()=>{$("copy").textContent=T[lang].copied;};
+  const fallback=()=>{const r=document.createRange(); r.selectNodeContents($("msg")); const s=getSelection(); s.removeAllRanges(); s.addRange(r);};
+  try{ navigator.clipboard.writeText(text).then(done,fallback); }catch(e){ fallback(); }
+};
+$("again").onclick=()=>{ $("form").reset(); selected=""; $("result").hidden=true; $("form").hidden=false; $("copy").textContent=T[lang].copy; render(); };
+render();
+</script>
+
+</body>
+</html>
