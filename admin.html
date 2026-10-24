@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard · Assistance Tech Wifi</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap wide">
+  <header class="page">
+    <div class="top">
+      <span class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="bizName"></span></span>
+      <div class="top-actions" id="topActions" hidden>
+        <button type="button" class="btn small" id="refreshBtn">Refresh</button>
+        <button type="button" class="btn small" id="settingsBtn">Payment details</button>
+        <button type="button" class="btn small" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+    <h1>Dashboard</h1>
+  </header>
+
+  <!-- login -->
+  <form id="loginForm" class="panel" novalidate hidden style="max-width:420px">
+    <h2>Log in</h2>
+    <label for="lg-email">Email<input id="lg-email" type="email" autocomplete="username"></label>
+    <label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password"></label>
+    <p class="msg err" id="lgErr" hidden></p>
+    <button class="btn primary" type="submit" id="lgBtn">Log in</button>
+  </form>
+
+  <!-- settings -->
+  <form id="settingsForm" class="panel" novalidate hidden>
+    <h2>Payment details</h2>
+    <p class="note">Customers see this text on their tracking page when you send a price. Put your Orange Money / MTN numbers and the name on the account.</p>
+    <label for="set-pay">How to pay<textarea id="set-pay" maxlength="1000"></textarea></label>
+    <p class="msg" id="setMsg" hidden></p>
+    <div class="btns">
+      <button class="btn primary" type="submit">Save</button>
+      <button class="btn" type="button" id="setClose">Close</button>
+    </div>
+  </form>
+
+  <!-- dashboard -->
+  <section id="dash" hidden>
+    <div class="chips" id="chips"></div>
+    <label for="search" style="max-width:420px">Search<input id="search" type="search" placeholder="Name, phone or code"></label>
+    <p class="note" id="lastUpdate"></p>
+    <div class="list" id="list"></div>
+  </section>
+
+  <p class="msg err" id="fatal" hidden></p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.76.1/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const A = APP, $ = U.$, h = U.h;
+const STATUS = { new:"New", quoted:"Waiting for payment", receipt_sent:"Receipt to check", paid:"Paid – to do", done:"Finished", cancelled:"Cancelled" };
+const FILTERS = [
+  ["active","Active", r => !["done","cancelled"].includes(r.status)],
+  ["new","New", r => r.status === "new"],
+  ["receipt_sent","Receipts to check", r => r.status === "receipt_sent"],
+  ["quoted","Waiting for payment", r => r.status === "quoted"],
+  ["paid","Paid – to do", r => r.status === "paid"],
+  ["done","Finished", r => r.status === "done"],
+  ["cancelled","Cancelled", r => r.status === "cancelled"],
+  ["all","All", () => true]
+];
+const ATTN = new Set(["new","receipt_sent","paid"]);
+const SEL = "id,code,token,created_at,updated_at,name,phone,service,place,device,description,mode,uses,pref_date,pref_time,urgency,status,price,admin_note,pay_method,pay_reference,receipt_path,receipt_at,paid_at,done_at,rating,review,reviewed_at";
+
+const sb = U.client(true);
+let rows = [], filter = "active", query = "", openIds = new Set(), knownIds = null, timer = null;
+
+document.querySelectorAll(".bizName").forEach(e => e.textContent = A.BUSINESS_NAME);
+
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 3000); }
+function beep(){ try { const c = new (window.AudioContext || window.webkitAudioContext)(); const o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = .08; o.connect(g); g.connect(c.destination); o.start(); setTimeout(() => { o.stop(); c.close(); }, 250); } catch(e){} }
+function ago(ts){ const m = Math.round((Date.now() - new Date(ts)) / 60000); if (m < 1) return "just now"; if (m < 60) return m + " min ago"; const hr = Math.round(m/60); if (hr < 24) return hr + " h ago"; return Math.round(hr/24) + " d ago"; }
+
+// ---------- auth ----------
+async function start(){
+  if (!sb) { $("fatal").textContent = "Could not load the database library. Check your internet connection and reload."; $("fatal").hidden = false; return; }
+  const { data } = await sb.auth.getSession();
+  if (data.session) await enter(data.session); else showLogin();
+}
+function showLogin(){ $("loginForm").hidden = false; $("dash").hidden = true; $("topActions").hidden = true; $("settingsForm").hidden = true; }
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("lgBtn").disabled = true; $("lgErr").hidden = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("lg-email").value.trim(), password: $("lg-pass").value });
+  $("lgBtn").disabled = false;
+  if (error) { $("lgErr").textContent = "Wrong email or password."; $("lgErr").hidden = false; return; }
+  enter(data.session);
+});
+
+async function enter(session){
+  const { data: adm, error } = await sb.from("admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
+  if (error || !adm) {
+    await sb.auth.signOut();
+    showLogin(); $("lgErr").textContent = "This account is not an admin. Run make-me-admin.sql in Supabase for this email."; $("lgErr").hidden = false; return;
+  }
+  $("loginForm").hidden = true; $("dash").hidden = false; $("topActions").hidden = false;
+  await load();
+  clearInterval(timer);
+  timer = setInterval(() => { if (document.visibilityState === "visible") load(true); }, 30000);
+}
+
+$("logoutBtn").onclick = async () => { clearInterval(timer); await sb.auth.signOut(); rows = []; knownIds = null; showLogin(); };
+$("refreshBtn").onclick = () => load();
+
+// ---------- data ----------
+async function load(auto){
+  const { data, error } = await sb.from("requests").select(SEL).order("created_at", { ascending: false }).limit(500);
+  if (error) { if (!auto) toast("Could not load requests: " + error.message); return; }
+  const ids = new Set(data.map(r => r.id));
+  if (knownIds) {
+    const fresh = data.filter(r => !knownIds.has(r.id));
+    const changed = data.filter(r => { const o = rows.find(x => x.id === r.id); return o && o.status !== r.status && r.status === "receipt_sent"; });
+    if (fresh.length) { toast(fresh.length === 1 ? "New request: " + fresh[0].name : fresh.length + " new requests"); beep(); }
+    else if (changed.length) { toast("Receipt received: " + changed[0].code); beep(); }
+  }
+  knownIds = ids; rows = data;
+  $("lastUpdate").textContent = "Updated " + U.dateTime(new Date()) + " · refreshes every 30 seconds";
+  render();
+}
+
+async function update(id, patch, okMsg){
+  const { error } = await sb.from("requests").update(patch).eq("id", id);
+  if (error) { toast("Not saved: " + error.message); return false; }
+  toast(okMsg || "Saved"); await load(true); return true;
+}
+
+// ---------- render ----------
+function render(){
+  const counts = c => rows.filter(FILTERS.find(f => f[0] === c)[2]).length;
+  $("chips").replaceChildren(...FILTERS.map(([k, label]) => {
+    const n = counts(k);
+    return h("button", {type:"button", class:"chip" + (ATTN.has(k) && n ? " attn" : ""), "aria-pressed": String(filter === k), onclick: () => { filter = k; render(); }}, label, h("b", null, n));
+  }));
+  const need = rows.filter(r => ATTN.has(r.status)).length;
+  document.title = (need ? `(${need}) ` : "") + "Dashboard · " + A.BUSINESS_NAME;
+
+  const f = FILTERS.find(x => x[0] === filter)[2];
+  const q = query.toLowerCase();
+  const shown = rows.filter(f).filter(r => !q || [r.name, r.phone, r.code, r.place, r.device].some(v => (v || "").toLowerCase().includes(q)));
+  if (!shown.length) { $("list").replaceChildren(h("div", {class:"empty"}, rows.length ? "No requests here." : "No requests yet. Share your link: when a customer saves a request, it appears here.")); return; }
+  $("list").replaceChildren(...shown.map(card));
+}
+$("search").addEventListener("input", e => { query = e.target.value.trim(); render(); });
+
+function card(r){
+  const d = h("details", {class:"req"});
+  if (openIds.has(r.id)) d.open = true;
+  d.addEventListener("toggle", () => { d.open ? openIds.add(r.id) : openIds.delete(r.id); if (d.open && !d.dataset.built) build(); });
+  const when = r.pref_date || r.pref_time ? `Appt ${U.date(r.pref_date)} ${r.pref_time || ""}`.trim() : null;
+  d.append(h("summary", null,
+    h("span", {class:"req-title"}, r.status === "new" ? h("span", {class:"new-dot"}) : null, r.name, " · ", U.service(r.service, "en")),
+    h("span", {class:"pill st-" + r.status}, STATUS[r.status]),
+    h("span", {class:"req-sub"}, h("span", {class:"req-code"}, r.code), when, r.price !== null ? h("span", null, U.money(r.price)) : null,
+      h("span", null, r.urgency === "today" ? "Urgent: today" : null), h("span", null, ago(r.created_at)))));
+  const body = h("div", {class:"req-body"}); d.append(body);
+  function build(){ d.dataset.built = "1"; body.replaceChildren(...details(r)); }
+  if (d.open) build();
+  return d;
+}
+
+function details(r){
+  const out = [];
+  const kv = [["Phone", r.phone], ["Service", U.service(r.service, "en")]];
+  if (r.pref_date || r.pref_time) kv.push(["Appointment", `${U.date(r.pref_date)} ${r.pref_time || ""}`.trim()]);
+  kv.push(["Where", r.mode === "site" ? "On site" : "Remote"], ["Customer uses", r.uses === "computer" ? "Computer" : "Phone"],
+    ["Urgency", {today:"Today", week:"This week", any:"No rush"}[r.urgency] || "—"]);
+  if (r.place) kv.push(["Place", r.place]);
+  if (r.device) kv.push(["Device", r.device]);
+  kv.push(["Problem", r.description], ["Received", U.dateTime(r.created_at)]);
+  if (r.paid_at) kv.push(["Paid", U.dateTime(r.paid_at)]);
+  if (r.done_at) kv.push(["Finished", U.dateTime(r.done_at)]);
+  out.push(h("dl", {class:"kv"}, kv.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)])));
+
+  const link = U.trackUrl(r.code, r.token);
+  const first = r.name.split(" ")[0];
+  out.push(h("div", {class:"btns"},
+    h("a", {class:"btn wa small", href: U.waLink(r.phone, `Bonjour ${first}, c'est ${A.BUSINESS_NAME} au sujet de votre demande ${r.code}.\nSuivi : ${link}`), target:"_blank", rel:"noopener"}, "WhatsApp customer"),
+    h("button", {type:"button", class:"btn small", onclick: e => U.copy(link, e.target, "Copied")}, "Copy tracking link")));
+
+  // price
+  if (["new","quoted","receipt_sent"].includes(r.status)) {
+    const priceIn = h("input", {id:"price-" + r.id, type:"number", min:"0", step:"1000", inputmode:"numeric", value: r.price ?? ""});
+    const noteIn = h("textarea", {id:"note-" + r.id, maxlength:"1000", placeholder:"Example: Price includes configuration of 1 MikroTik and 2 access points."}, r.admin_note || "");
+    const waAfter = h("a", {class:"btn wa", target:"_blank", rel:"noopener", hidden: r.price === null}, "Send price on WhatsApp");
+    const setWa = p => waAfter.href = U.waLink(r.phone, `Bonjour ${first}, le prix pour votre demande ${r.code} est de ${U.money(p)}.\nPayez puis envoyez la photo du reçu ici : ${link}`);
+    if (r.price !== null) setWa(r.price);
+    out.push(h("form", {class:"panel", novalidate:true, onsubmit: async e => {
+        e.preventDefault();
+        const p = priceIn.value === "" ? NaN : Number(priceIn.value);
+        if (!(p >= 0)) { toast("Enter a price"); return; }
+        const patch = { price: Math.round(p), admin_note: noteIn.value.trim() || null };
+        if (r.status === "new") patch.status = "quoted";
+        if (await update(r.id, patch, "Price saved. Send it on WhatsApp.")) { /* list rebuilt */ }
+      }},
+      h("h3", null, r.status === "new" ? "1. Set the price" : "Price"),
+      h("label", {for:"price-" + r.id}, `Price (${A.CURRENCY})`, priceIn),
+      h("label", {for:"note-" + r.id}, "Message to customer (optional)", noteIn),
+      h("div", {class:"btns"}, h("button", {class:"btn primary", type:"submit"}, r.status === "new" ? "Save and send price" : "Update price"), waAfter)));
+  }
+
+  // receipt
+  if (r.receipt_path) {
+    const holder = h("div", {class:"panel"}, h("h3", null, "Payment receipt"),
+      h("p", {class:"note"}, `${r.pay_method || "—"}${r.pay_reference ? " · Ref: " + r.pay_reference : ""} · sent ${U.dateTime(r.receipt_at)}`));
+    const view = h("div");
+    holder.append(view);
+    sb.storage.from("receipts").createSignedUrl(r.receipt_path, 600).then(({ data, error }) => {
+      if (error || !data) { view.append(h("p", {class:"msg err"}, "Could not open the receipt.")); return; }
+      const isPdf = /\.pdf$/i.test(r.receipt_path);
+      if (!isPdf) view.append(h("img", {class:"receipt-img", src: data.signedUrl, alt:"Payment receipt"}));
+      view.append(h("p", null, h("a", {href: data.signedUrl, target:"_blank", rel:"noopener"}, isPdf ? "Open receipt (PDF)" : "Open full size")));
+    });
+    if (r.status === "receipt_sent") {
+      holder.append(h("div", {class:"btns"},
+        h("button", {type:"button", class:"btn primary", onclick: () => update(r.id, { status:"paid", paid_at: new Date().toISOString() }, "Payment confirmed")}, "Confirm payment"),
+        confirmBtn("Receipt not valid", "Yes, ask again", () => update(r.id, { status:"quoted", admin_note: "Le reçu n'est pas valide. Merci d'envoyer un nouveau reçu. / The receipt is not valid, please send a new one." }, "Customer asked for a new receipt"))));
+    }
+    out.push(holder);
+  }
+
+  // job
+  if (r.status === "quoted") out.push(h("div", {class:"btns"},
+    h("button", {type:"button", class:"btn", onclick: () => update(r.id, { status:"paid", paid_at: new Date().toISOString() }, "Marked as paid")}, "Paid in cash (no receipt)")));
+  if (r.status === "paid") out.push(h("div", {class:"btns"},
+    h("button", {type:"button", class:"btn primary", onclick: () => update(r.id, { status:"done", done_at: new Date().toISOString() }, "Job finished. The customer can now leave a review.")}, "Mark job finished"),
+    h("a", {class:"btn wa", target:"_blank", rel:"noopener", href: U.waLink(r.phone, `Bonjour ${first}, votre travail ${r.code} est terminé. Merci ! Vous pouvez laisser votre avis ici : ${link}`)}, "Tell customer it's finished")));
+
+  // review
+  if (r.reviewed_at) out.push(h("div", {class:"panel"}, h("h3", null, "Customer review"),
+    h("span", {class:"stars-static"}, "★".repeat(r.rating) + "☆".repeat(5 - r.rating)), h("p", {style:"margin:0"}, r.review || "(no comment)")));
+  else if (r.status === "done") out.push(h("p", {class:"note"}, "Waiting for the customer's review."));
+
+  if (!["done","cancelled"].includes(r.status)) out.push(h("div", {class:"btns"},
+    confirmBtn("Cancel request", "Yes, cancel it", () => update(r.id, { status:"cancelled" }, "Request cancelled"), true)));
+  if (r.status === "cancelled") out.push(h("div", {class:"btns"},
+    h("button", {type:"button", class:"btn", onclick: () => update(r.id, { status:"new" }, "Request reopened")}, "Reopen")));
+  return out;
+}
+
+// two-step button instead of confirm() dialogs
+function confirmBtn(label, sure, action, danger){
+  const b = h("button", {type:"button", class:"btn" + (danger ? " danger" : "")}, label);
+  b.addEventListener("click", () => {
+    if (b.dataset.armed) { action(); return; }
+    b.dataset.armed = "1"; b.textContent = sure; b.classList.add("danger");
+    setTimeout(() => { delete b.dataset.armed; b.textContent = label; if (!danger) b.classList.remove("danger"); }, 4000);
+  });
+  return b;
+}
+
+// ---------- settings ----------
+$("settingsBtn").onclick = async () => {
+  const { data, error } = await sb.from("settings").select("payment_details").eq("id", 1).maybeSingle();
+  if (error) { toast("Could not load settings"); return; }
+  $("set-pay").value = data ? data.payment_details : "";
+  $("setMsg").hidden = true; $("settingsForm").hidden = false; $("settingsForm").scrollIntoView({ behavior:"smooth" });
+};
+$("setClose").onclick = () => $("settingsForm").hidden = true;
+$("settingsForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = $("set-pay").value.trim();
+  if (!v) return;
+  const { error } = await sb.from("settings").update({ payment_details: v }).eq("id", 1);
+  const m = $("setMsg"); m.hidden = false;
+  m.className = "msg " + (error ? "err" : "ok"); m.textContent = error ? "Not saved: " + error.message : "Saved. Customers will see this text.";
+});
+
+start();
+</script>
+</body>
+</html>

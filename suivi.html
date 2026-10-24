@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suivi de demande · Assistance Tech Wifi</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <div class="top">
+      <a class="brand" href="./"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="bizName"></span></a>
+      <div class="top-actions">
+        <a class="btn small" href="./" data-t="newReq"></a>
+        <div class="lang" role="group" aria-label="Langue / Language">
+          <button type="button" id="btnFr" aria-pressed="true">FR</button>
+          <button type="button" id="btnEn" aria-pressed="false">EN</button>
+        </div>
+      </div>
+    </div>
+    <h1 data-t="title"></h1>
+  </header>
+
+  <!-- Find a request -->
+  <section id="lookup" hidden>
+    <form id="findForm" class="panel" novalidate>
+      <p class="note" data-t="findText"></p>
+      <div class="row">
+        <label for="l-code"><span data-t="code"></span><input id="l-code" placeholder="AN-XXXXX" autocapitalize="characters" maxlength="12"></label>
+        <label for="l-phone"><span data-t="phone"></span><input id="l-phone" type="tel" inputmode="tel" maxlength="30"></label>
+      </div>
+      <p class="msg err" id="findErr" hidden></p>
+      <button class="btn primary" type="submit" id="findBtn" data-t="find"></button>
+    </form>
+    <div id="mine" class="panel" hidden>
+      <h3 data-t="mine"></h3>
+      <div class="btns" id="mineList"></div>
+    </div>
+  </section>
+
+  <!-- One request -->
+  <section id="view" hidden>
+    <div class="panel">
+      <div class="top">
+        <div><div class="note" data-t="code"></div><div class="code" id="vCode"></div></div>
+        <span class="pill" id="vPill"></span>
+      </div>
+      <ol class="steps" id="vSteps"></ol>
+      <p class="msg info" id="vStatusText"></p>
+    </div>
+
+    <!-- price + payment -->
+    <div class="panel" id="payBox" hidden>
+      <h2 data-t="priceTitle"></h2>
+      <div class="price" id="vPrice"></div>
+      <div id="vNoteWrap" hidden><div class="note" data-t="fromTech"></div><pre class="box" id="vNote"></pre></div>
+      <div><div class="note" data-t="howPay"></div><pre class="box" id="vPayDetails"></pre></div>
+      <form id="receiptForm" novalidate>
+        <h3 data-t="sendReceipt"></h3>
+        <div class="row">
+          <label for="r-method"><span data-t="method"></span>
+            <select id="r-method">
+              <option value="Orange Money">Orange Money</option>
+              <option value="MTN MoMo">MTN MoMo</option>
+              <option value="Cash" data-t="cash"></option>
+              <option value="Other" data-t="other"></option>
+            </select></label>
+          <label for="r-ref"><span data-t="ref"></span><input id="r-ref" maxlength="80"></label>
+        </div>
+        <label for="r-file"><span data-t="photo"></span><input id="r-file" type="file" accept="image/*,application/pdf"></label>
+        <p class="note" data-t="photoNote"></p>
+        <p class="msg err" id="rErr" hidden></p>
+        <button class="btn primary" type="submit" id="rBtn" data-t="sendBtn"></button>
+      </form>
+    </div>
+
+    <!-- review -->
+    <div class="panel" id="reviewBox" hidden>
+      <h2 data-t="reviewTitle"></h2>
+      <form id="reviewForm" novalidate>
+        <div class="stars" id="stars" role="radiogroup"></div>
+        <label for="rv-text"><span data-t="reviewLabel"></span><textarea id="rv-text" maxlength="1000"></textarea></label>
+        <p class="msg err" id="rvErr" hidden></p>
+        <button class="btn primary" type="submit" id="rvBtn" data-t="reviewBtn"></button>
+      </form>
+      <div id="reviewDone" hidden>
+        <p class="msg ok" data-t="thanks"></p>
+        <div class="stars-static" id="rvStars"></div>
+        <p id="rvShow"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 data-t="details"></h3>
+      <dl class="kv" id="vDetails"></dl>
+    </div>
+
+    <div class="btns">
+      <a class="btn wa" id="vWa" href="#" target="_blank" rel="noopener" data-t="askWa"></a>
+      <button type="button" class="btn" id="vRefresh" data-t="refresh"></button>
+      <button type="button" class="btn" id="vCopy" data-t="copyLink"></button>
+    </div>
+  </section>
+
+  <p class="msg err" id="loadErr" hidden></p>
+
+  <div class="contact">
+    <span data-t="contact"></span>
+    <span class="num waDisplay"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.76.1/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const A = APP, $ = U.$, h = U.h;
+const T = {
+fr:{title:"Suivi de ma demande",newReq:"Nouvelle demande",findText:"Entrez votre code de suivi et votre numéro de téléphone.",code:"Code de suivi",phone:"Numéro de téléphone",
+find:"Voir ma demande",notFound:"Aucune demande trouvée avec ce code et ce numéro.",mine:"Mes demandes sur ce téléphone",
+steps:["Reçue","Prix envoyé","Paiement envoyé","Paiement confirmé","Terminé"],
+st:{new:"Reçue",quoted:"En attente de paiement",receipt_sent:"Reçu à vérifier",paid:"Payée, travail en cours",done:"Terminée",cancelled:"Annulée"},
+stText:{new:"Votre demande est reçue. Le technicien la regarde et vous envoie le prix bientôt.",quoted:"Le prix est prêt. Payez, puis envoyez la photo de votre reçu ci‑dessous.",
+receipt_sent:"Votre reçu est envoyé. Le technicien vérifie le paiement.",paid:"Paiement confirmé. Le travail est en cours.",done:"Travail terminé. Merci ! Donnez votre avis ci‑dessous.",cancelled:"Cette demande a été annulée. Contactez‑nous sur WhatsApp pour plus d'informations."},
+priceTitle:"Prix",fromTech:"Message du technicien",howPay:"Comment payer",sendReceipt:"Envoyer mon reçu de paiement",resend:"Envoyer un autre reçu",
+method:"Moyen de paiement",cash:"Espèces",other:"Autre",ref:"Référence / ID de transaction",photo:"Photo ou capture du reçu",photoNote:"Image ou PDF, 5 Mo maximum.",
+sendBtn:"Envoyer le reçu",sending:"Envoi…",errFile:"Choisissez une photo du reçu (image ou PDF, 5 Mo maximum).",errSend:"L'envoi a échoué. Vérifiez votre connexion et réessayez.",sentOk:"Reçu envoyé.",
+reviewTitle:"Votre avis",reviewLabel:"Votre commentaire",reviewBtn:"Envoyer mon avis",errStars:"Choisissez une note de 1 à 5 étoiles.",thanks:"Merci pour votre avis !",
+details:"Détails",d:{service:"Service",when:"Rendez‑vous",at:"à",mode:"Intervention",remote:"À distance",site:"Sur place",uses:"Appareil utilisé",phone:"Téléphone",computer:"Ordinateur",device:"Appareil",place:"Lieu",desc:"Problème",created:"Envoyée le",pay:"Paiement"},
+askWa:"Question sur WhatsApp",refresh:"Actualiser",copyLink:"Copier le lien",copied:"Lien copié",contact:"WhatsApp :",loadErr:"Impossible de charger la demande. Vérifiez votre connexion.",
+waMsg:(c)=>`Bonjour, j'ai une question sur ma demande ${c}.`},
+en:{title:"Track my request",newReq:"New request",findText:"Enter your tracking code and your phone number.",code:"Tracking code",phone:"Phone number",
+find:"View my request",notFound:"No request found with this code and number.",mine:"My requests on this phone",
+steps:["Received","Price sent","Payment sent","Payment confirmed","Finished"],
+st:{new:"Received",quoted:"Waiting for payment",receipt_sent:"Receipt being checked",paid:"Paid, work in progress",done:"Finished",cancelled:"Cancelled"},
+stText:{new:"Your request is received. The technician is looking at it and will send you the price soon.",quoted:"The price is ready. Pay, then send a photo of your receipt below.",
+receipt_sent:"Your receipt is sent. The technician is checking the payment.",paid:"Payment confirmed. The work is in progress.",done:"Job finished. Thank you! Leave your review below.",cancelled:"This request was cancelled. Contact us on WhatsApp for more information."},
+priceTitle:"Price",fromTech:"Message from the technician",howPay:"How to pay",sendReceipt:"Send my payment receipt",resend:"Send another receipt",
+method:"Payment method",cash:"Cash",other:"Other",ref:"Reference / transaction ID",photo:"Photo or screenshot of the receipt",photoNote:"Image or PDF, 5 MB maximum.",
+sendBtn:"Send receipt",sending:"Sending…",errFile:"Choose a photo of the receipt (image or PDF, 5 MB maximum).",errSend:"Sending failed. Check your connection and try again.",sentOk:"Receipt sent.",
+reviewTitle:"Your review",reviewLabel:"Your comment",reviewBtn:"Send my review",errStars:"Choose a rating from 1 to 5 stars.",thanks:"Thank you for your review!",
+details:"Details",d:{service:"Service",when:"Appointment",at:"at",mode:"Where",remote:"Remote",site:"On site",uses:"Device used",phone:"Phone",computer:"Computer",device:"Device",place:"Place",desc:"Problem",created:"Sent on",pay:"Payment"},
+askWa:"Ask on WhatsApp",refresh:"Refresh",copyLink:"Copy link",copied:"Link copied",contact:"WhatsApp:",loadErr:"Could not load the request. Check your connection.",
+waMsg:(c)=>`Hello, I have a question about my request ${c}.`}
+};
+const ORDER = ["new","quoted","receipt_sent","paid","done"];
+
+let lang = U.store.get("lang", "fr") === "en" ? "en" : "fr";
+const sb = U.client(false);
+const params = new URLSearchParams(location.search);
+let code = (params.get("c") || "").toUpperCase(), token = params.get("k") || "";
+let req = null, rating = 0, timer = null;
+
+document.querySelectorAll(".bizName").forEach(e => e.textContent = A.BUSINESS_NAME);
+document.querySelectorAll(".waDisplay").forEach(e => e.textContent = A.WHATSAPP_DISPLAY);
+
+function setLang(l){ lang = l; U.store.set("lang", l); render(); }
+$("btnFr").onclick = () => setLang("fr"); $("btnEn").onclick = () => setLang("en");
+
+function render(){
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => { const k = el.dataset.t; if (typeof t[k] === "string") el.textContent = t[k]; });
+  $("btnFr").setAttribute("aria-pressed", lang === "fr"); $("btnEn").setAttribute("aria-pressed", lang === "en");
+  renderMine(); renderStars();
+  if (req) renderRequest();
+}
+
+function renderMine(){
+  const list = U.store.get("my_requests", []);
+  $("mine").hidden = !list.length;
+  $("mineList").replaceChildren(...list.map(r => h("a", {class:"btn small", href: U.trackUrl(r.code, r.token)}, r.code)));
+}
+
+function renderStars(){
+  $("stars").replaceChildren(...[1,2,3,4,5].map(n => h("button", {type:"button", role:"radio", "aria-checked": String(rating === n),
+    "aria-label": n + "/5", class: n <= rating ? "on" : "", onclick: () => { rating = n; renderStars(); }}, "★")));
+}
+
+function renderRequest(){
+  const t = T[lang], r = req, d = t.d;
+  $("vCode").textContent = r.code;
+  const pill = $("vPill"); pill.className = "pill st-" + r.status; pill.textContent = t.st[r.status] || r.status;
+  const idx = ORDER.indexOf(r.status);
+  $("vSteps").hidden = r.status === "cancelled";
+  $("vSteps").replaceChildren(...t.steps.map((s, i) => h("li", {class: i < idx || r.status === "done" ? "done" : (i === idx ? "now" : "")}, s)));
+  $("vStatusText").textContent = t.stText[r.status] || "";
+
+  const showPay = ["quoted","receipt_sent","paid","done"].includes(r.status) && r.price !== null;
+  $("payBox").hidden = !showPay;
+  if (showPay) {
+    $("vPrice").textContent = U.money(r.price);
+    $("vNoteWrap").hidden = !r.admin_note; $("vNote").textContent = r.admin_note || "";
+    $("vPayDetails").textContent = r.payment_details || "";
+    const canSend = r.status === "quoted" || r.status === "receipt_sent";
+    $("receiptForm").hidden = !canSend;
+    $("receiptForm").querySelector("h3").textContent = r.status === "receipt_sent" ? t.resend : t.sendReceipt;
+  }
+
+  $("reviewBox").hidden = r.status !== "done";
+  const reviewed = !!r.reviewed_at;
+  $("reviewForm").hidden = reviewed; $("reviewDone").hidden = !reviewed;
+  if (reviewed) { $("rvStars").textContent = "★".repeat(r.rating) + "☆".repeat(5 - r.rating); $("rvShow").textContent = r.review || ""; }
+
+  const rows = [[d.service, U.service(r.service, lang)]];
+  if (r.pref_date || r.pref_time) rows.push([d.when, `${U.date(r.pref_date)}${r.pref_date && r.pref_time ? " " + d.at + " " : ""}${r.pref_time || ""}`]);
+  rows.push([d.mode, r.mode === "site" ? d.site : d.remote]);
+  rows.push([d.uses, r.uses === "computer" ? d.computer : d.phone]);
+  if (r.device) rows.push([d.device, r.device]);
+  if (r.place) rows.push([d.place, r.place]);
+  rows.push([d.desc, r.description]);
+  if (r.pay_method) rows.push([d.pay, r.pay_method + (r.pay_reference ? " · " + r.pay_reference : "")]);
+  rows.push([d.created, U.dateTime(r.created_at)]);
+  $("vDetails").replaceChildren(...rows.flatMap(([k, v]) => [h("dt", null, k), h("dd", null, v)]));
+  $("vWa").href = U.waLink(A.WHATSAPP_NUMBER, t.waMsg(r.code));
+}
+
+async function load(quiet){
+  if (!sb) { $("loadErr").textContent = T[lang].loadErr; $("loadErr").hidden = false; return; }
+  const { data, error } = await sb.rpc("get_request", { p_code: code, p_token: token });
+  if (error) { if (!quiet) { $("loadErr").textContent = T[lang].loadErr; $("loadErr").hidden = false; } return; }
+  $("loadErr").hidden = true;
+  if (!data) { showLookup(T[lang].notFound); return; }
+  req = data; U.rememberRequest(code, token);
+  if (!timer) timer = setInterval(() => { if (document.visibilityState === "visible" && !$("view").hidden) load(true); }, 30000);
+  $("lookup").hidden = true; $("view").hidden = false;
+  renderRequest();
+}
+
+function showLookup(err){
+  $("view").hidden = true; $("lookup").hidden = false;
+  if (code) $("l-code").value = code;
+  $("findErr").hidden = !err; $("findErr").textContent = err || "";
+}
+
+$("findForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const c = $("l-code").value.trim().toUpperCase(), p = $("l-phone").value.trim();
+  if (!c || p.replace(/\D/g, "").length < 8 || !sb) { $("findErr").textContent = T[lang].notFound; $("findErr").hidden = false; return; }
+  $("findBtn").disabled = true;
+  const { data, error } = await sb.rpc("find_request", { p_code: c, p_phone: p });
+  $("findBtn").disabled = false;
+  if (error || !data) { $("findErr").textContent = error ? T[lang].loadErr : T[lang].notFound; $("findErr").hidden = false; return; }
+  code = c; token = data;
+  history.replaceState(null, "", `suivi.html?c=${encodeURIComponent(code)}&k=${encodeURIComponent(token)}`);
+  load();
+});
+
+$("receiptForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const t = T[lang], f = $("r-file").files[0];
+  const okType = f && (/^image\//.test(f.type) || f.type === "application/pdf" || (!f.type && /\.(jpe?g|png|webp|heic|heif|pdf)$/i.test(f.name)));
+  if (!f || !okType || f.size > 5 * 1024 * 1024) { $("rErr").textContent = t.errFile; $("rErr").hidden = false; return; }
+  $("rErr").hidden = true;
+  const btn = $("rBtn"); btn.disabled = true; btn.textContent = t.sending;
+  try {
+    const ext = (f.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+    const path = `${code}/${token}/${Date.now()}.${ext}`;
+    const up = await sb.storage.from("receipts").upload(path, f, { contentType: f.type || "image/jpeg", upsert: false });
+    if (up.error) throw up.error;
+    const { data, error } = await sb.rpc("submit_receipt", { p_code: code, p_token: token, p_path: path,
+      p_method: $("r-method").value, p_reference: $("r-ref").value.trim() });
+    if (error || !data) throw error || new Error("not_updated");
+    $("r-file").value = "";
+    await load();
+  } catch(err) {
+    console.error(err); $("rErr").textContent = t.errSend; $("rErr").hidden = false;
+  } finally { btn.disabled = false; btn.textContent = t.sendBtn; }
+});
+
+$("reviewForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const t = T[lang];
+  if (!rating) { $("rvErr").textContent = t.errStars; $("rvErr").hidden = false; return; }
+  $("rvErr").hidden = true; $("rvBtn").disabled = true;
+  const { error } = await sb.rpc("submit_review", { p_code: code, p_token: token, p_rating: rating, p_review: $("rv-text").value.trim() });
+  $("rvBtn").disabled = false;
+  if (error) { $("rvErr").textContent = t.errSend; $("rvErr").hidden = false; return; }
+  load();
+});
+
+$("vRefresh").onclick = () => load();
+$("vCopy").onclick = () => U.copy(U.trackUrl(code, token), $("vCopy"), T[lang].copied);
+
+render();
+if (code && /^[0-9a-f-]{36}$/i.test(token)) {
+  load();
+} else showLookup();
+</script>
+</body>
+</html>
