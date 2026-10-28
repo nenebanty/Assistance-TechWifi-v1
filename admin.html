@@ -263,7 +263,7 @@ function card(r){
   const d = h("details", {class:"req"});
   if (openIds.has(r.id)) d.open = true;
   d.addEventListener("toggle", () => { d.open ? openIds.add(r.id) : openIds.delete(r.id); if (d.open && !d.dataset.built) build(); });
-  const when = r.pref_date || r.pref_time ? `Appt ${U.date(r.pref_date)} ${r.pref_time || ""}`.trim() : null;
+  const when = r.pref_date || r.pref_time ? `Appt ${U.date(r.pref_date)} ${U.timeText(r.pref_time)}`.trim() : null;
   d.append(h("summary", null,
     h("span", {class:"req-title"}, r.status === "new" ? h("span", {class:"new-dot"}) : null, r.name, " · ", U.service(r.service, "en")),
     h("span", {class:"pill st-" + r.status}, STATUS[r.status]),
@@ -279,7 +279,7 @@ function details(r){
   const out = [];
   const kv = [["Phone", r.phone], ["Service", U.service(r.service, "en")]];
   U.extrasFor(r.service).forEach(f => { const v = r.extras && r.extras[f.id]; if (v) kv.push([f.en, v]); });
-  if (r.pref_date || r.pref_time) kv.push(["Appointment", `${U.date(r.pref_date)} ${r.pref_time || ""}`.trim()]);
+  if (r.pref_date || r.pref_time) kv.push(["Appointment", `${U.date(r.pref_date)} ${U.timeText(r.pref_time)}`.trim()]);
   kv.push(["Where", r.mode === "site" ? "On site" : "Remote"], ["Customer uses", r.uses === "computer" ? "Computer" : "Phone"],
     ["Urgency", {today:"Today", week:"This week", any:"No rush"}[r.urgency] || "—"]);
   if (r.place) kv.push(["Place", r.place]);

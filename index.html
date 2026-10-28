@@ -75,10 +75,14 @@ header.page.client-hero .lang button[aria-pressed="true"]{background:var(--accen
           <label><input type="radio" name="uses" id="uses-pc" value="computer"><span data-t="usePc"></span></label>
         </div>
       </fieldset>
-      <div class="row">
-        <label for="f-date"><span data-t="date"></span><input id="f-date" type="date"></label>
-        <label for="f-time"><span data-t="time"></span><select id="f-time"></select></label>
-      </div>
+      <label for="f-date"><span data-t="date"></span><input id="f-date" type="date"></label>
+      <fieldset>
+        <legend data-t="time"></legend>
+        <div class="row">
+          <label for="f-time-from"><span data-t="timeFrom"></span><select id="f-time-from"></select></label>
+          <label for="f-time-to"><span data-t="timeTo"></span><select id="f-time-to"></select></label>
+        </div>
+      </fieldset>
       <fieldset>
         <legend data-t="urgency"></legend>
         <div class="radios">
@@ -136,7 +140,7 @@ fr:{title:"Besoin d'aide ? Envoyez votre demande.",lede:"Réseau entreprise (Mik
 trackLink:"Suivre ma demande",step1:"Étape 1",svcTitle:"Choisissez un service",step2:"Étape 2",formTitle:"Décrivez votre problème",
 name:"Votre nom",phone:"Votre numéro WhatsApp",service:"Service",place:"Quartier / ville",device:"Appareil (marque et modèle)",desc:"Expliquez le problème",
 how:"Intervention",remote:"À distance (AnyDesk / UltraViewer / WhatsApp)",site:"Sur place",uses:"Vous utilisez",usePhone:"Téléphone",usePc:"Ordinateur",
-date:"Date souhaitée",time:"Heure souhaitée",anyTime:"N'importe quelle heure",urgency:"Urgence",today:"Aujourd'hui",week:"Cette semaine",any:"Pas pressé",
+date:"Date souhaitée",time:"Heure souhaitée (créneau)",timeFrom:"De",timeTo:"À",anyTime:"N'importe quelle heure",errTime:"L'heure de fin doit être après l'heure de début.",urgency:"Urgence",today:"Aujourd'hui",week:"Cette semaine",any:"Pas pressé",
 owner:"Pour le flashing, le déblocage et l'iCloud / Apple ID, il faut être le propriétaire du téléphone (boîte, facture ou pièce d'identité).",
 submit:"Enregistrer ma demande",saving:"Enregistrement…",
 savedTitle:"Votre demande est enregistrée.",yourCode:"Votre code de suivi",
@@ -151,7 +155,7 @@ en:{title:"Need help? Send your request.",lede:"Business networks (MikroTik, Cis
 trackLink:"Track my request",step1:"Step 1",svcTitle:"Choose a service",step2:"Step 2",formTitle:"Describe your problem",
 name:"Your name",phone:"Your WhatsApp number",service:"Service",place:"Area / town",device:"Device (brand and model)",desc:"Explain the problem",
 how:"Where",remote:"Remote (AnyDesk / UltraViewer / WhatsApp)",site:"On site",uses:"You are using",usePhone:"Phone",usePc:"Computer",
-date:"Preferred date",time:"Preferred time",anyTime:"Any time",urgency:"Urgency",today:"Today",week:"This week",any:"No rush",
+date:"Preferred date",time:"Preferred time (window)",timeFrom:"From",timeTo:"To",anyTime:"Any time",errTime:"The end time must be after the start time.",urgency:"Urgency",today:"Today",week:"This week",any:"No rush",
 owner:"For flashing, unlocking and iCloud / Apple ID, you must be the phone's owner (box, receipt or ID).",
 submit:"Save my request",saving:"Saving…",
 savedTitle:"Your request is saved.",yourCode:"Your tracking code",
@@ -199,10 +203,9 @@ function render(){
     else items.forEach(s => sel.append(h("option", {value:s.id}, s[lang][0])));
   });
   sel.value = cur;
-  const ts = $("f-time"), tc = ts.value;
-  const opts = [h("option", {value:""}, t.anyTime)];
-  for (let i = 7; i <= 22; i++) { const v = String(i).padStart(2,"0") + ":00"; opts.push(h("option", {value:v}, v)); }
-  ts.replaceChildren(...opts); ts.value = tc;
+  const mkOpts = () => { const o = [h("option", {value:""}, t.anyTime)]; for (let i = 7; i <= 22; i++) { const v = String(i).padStart(2,"0") + ":00"; o.push(h("option", {value:v}, v)); } return o; };
+  const tf = $("f-time-from"), tfv = tf.value; tf.replaceChildren(...mkOpts()); tf.value = tfv;
+  const tt = $("f-time-to"), ttv = tt.value; tt.replaceChildren(...mkOpts()); tt.value = ttv;
   renderExtras();
   renderReviews();
   if (last) $("waBtn").href = U.waLink(A.WHATSAPP_NUMBER, buildMessage(last.data, last.code, last.token));
@@ -229,12 +232,13 @@ function renderExtras(){
   });
 }
 
+function timeRange(){ const f = $("f-time-from").value, t = $("f-time-to").value; return (f && t) ? `${f}-${t}` : (f || ""); }
 function collect(){
   const svc = $("f-service").value, extras = {};
   U.extrasFor(svc).forEach(f => { const v = (extraVals[f.id] || "").toString().trim(); if (v) extras[f.id] = v; });
   return { lang, name: $("f-name").value.trim(), phone: $("f-phone").value.trim(), service: svc,
     place: $("f-place").value.trim(), device: $("f-device").value.trim(), description: $("f-desc").value.trim(),
-    mode: radio("how"), uses: radio("uses"), pref_date: $("f-date").value, pref_time: $("f-time").value, urgency: radio("urg"), extras };
+    mode: radio("how"), uses: radio("uses"), pref_date: $("f-date").value, pref_time: timeRange(), urgency: radio("urg"), extras };
 }
 
 function buildMessage(d, code, token){
@@ -245,7 +249,7 @@ function buildMessage(d, code, token){
   U.extrasFor(d.service).forEach(f => { const v = d.extras && d.extras[f.id]; if (v) lines.push(`${f[lang]}: ${v}`); });
   if (d.place) lines.push(`${m.place}: ${d.place}`);
   if (d.device) lines.push(`${m.device}: ${d.device}`);
-  if (d.pref_date || d.pref_time) lines.push(`${m.when}: ${U.date(d.pref_date)}${d.pref_date && d.pref_time ? " " + m.at + " " : ""}${d.pref_time}`);
+  if (d.pref_date || d.pref_time) lines.push(`${m.when}: ${U.date(d.pref_date)}${d.pref_date && d.pref_time ? " " + m.at + " " : ""}${U.timeText(d.pref_time)}`);
   lines.push(`${m.how}: ${d.mode === "site" ? t.site : t.remote}`, `${m.uses}: ${d.uses === "computer" ? t.usePc : t.usePhone}`,
     `${m.urg}: ${t[d.urgency] || ""}`, `${m.desc}: ${d.description}`);
   if (code && token) lines.push("", `${m.track}: ${U.trackUrl(code, token)}`);
@@ -257,6 +261,7 @@ $("form").addEventListener("submit", async e => {
   const t = T[lang], d = collect();
   if (!d.name || d.phone.replace(/\D/g, "").length < 6 || !d.service || !d.description) { $("err").textContent = t.errReq; $("err").hidden = false; return; }
   if (U.extrasFor(d.service).some(f => !f.optional && !(d.extras && d.extras[f.id]))) { $("err").textContent = t.errExtras; $("err").hidden = false; return; }
+  { const tf = $("f-time-from").value, tt = $("f-time-to").value; if (tf && tt && tt <= tf) { $("err").textContent = t.errTime; $("err").hidden = false; return; } }
   $("err").hidden = true;
   const btn = $("submitBtn"); btn.disabled = true; btn.textContent = t.saving;
   try {

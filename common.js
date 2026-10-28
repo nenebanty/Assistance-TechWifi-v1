@@ -48,6 +48,8 @@
     return `${da}/${m}/${y}`;
   };
 
+  U.timeText = function(t){ return t ? String(t).replace("-", " – ") : ""; };
+
   U.dateTime = function(ts){
     if (!ts) return "";
     const d = new Date(ts);

@@ -209,7 +209,7 @@ function renderRequest(){
 
   const rows = [[d.service, U.service(r.service, lang)]];
   U.extrasFor(r.service).forEach(f => { const v = r.extras && r.extras[f.id]; if (v) rows.push([f[lang], v]); });
-  if (r.pref_date || r.pref_time) rows.push([d.when, `${U.date(r.pref_date)}${r.pref_date && r.pref_time ? " " + d.at + " " : ""}${r.pref_time || ""}`]);
+  if (r.pref_date || r.pref_time) rows.push([d.when, `${U.date(r.pref_date)}${r.pref_date && r.pref_time ? " " + d.at + " " : ""}${U.timeText(r.pref_time)}`]);
   rows.push([d.mode, r.mode === "site" ? d.site : d.remote]);
   rows.push([d.uses, r.uses === "computer" ? d.computer : d.phone]);
   if (r.device) rows.push([d.device, r.device]);
