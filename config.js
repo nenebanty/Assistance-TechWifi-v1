@@ -15,15 +15,27 @@ window.APP = {
     {id:"tech",     icon:"🔧", fr:"Techniciens",        en:"Technicians"}
   ],
 
+  // Brand list reused by the "access point brand" question.
+  AP_BRANDS: ["Grandstream", "COMFAST", "TP‑Link", "Cudy", "Ruijie / Reyee", "Autre / Other"],
+
+  // extras: extra questions shown only when that service is chosen.
+  //   type "number" | "select" | "text"; options for select; optional:true to not require it.
   SERVICES: [
     // --- Réseau entreprise / Business network ---
     {id:"biz_mikrotik", group:"business", tag:{fr:"MikroTik",en:"MikroTik"}, fr:["Réseau entreprise MikroTik","Routeur, firewall, VLAN, VPN, bande passante"], en:["MikroTik company network","Router, firewall, VLAN, VPN, bandwidth"]},
     {id:"biz_hotspot", group:"business", tag:{fr:"Hotspot",en:"Hotspot"}, fr:["Hotspot MikroTik pro","Portail, tickets, contrôle du débit, multi‑utilisateurs"], en:["MikroTik hotspot (business)","Portal, vouchers, bandwidth control, many users"]},
     {id:"cisco", group:"business", tag:{fr:"Cisco",en:"Cisco"}, fr:["Configuration Cisco","Routeurs et switches Cisco"], en:["Cisco configuration","Cisco routers and switches"]},
+    {id:"point_to_point", group:"business", tag:{fr:"P2P",en:"P2P"}, fr:["Liaison point à point","Pont Wi‑Fi entre 2 sites / bâtiments"], en:["Point‑to‑point link","Wi‑Fi bridge between 2 sites / buildings"], extras:[
+      {id:"ptp_device", type:"text", fr:"Nom / modèle de l'antenne", en:"Antenna / device name", placeholder:{fr:"ex. Ubiquiti LiteBeam, Mikrotik LHG…", en:"e.g. Ubiquiti LiteBeam, Mikrotik LHG…"}},
+      {id:"ptp_distance", type:"text", optional:true, fr:"Distance entre les 2 points (optionnel)", en:"Distance between the 2 points (optional)", placeholder:{fr:"ex. 1,5 km", en:"e.g. 1.5 km"}}
+    ]},
     {id:"network_setup", group:"business", tag:{fr:"Réseau",en:"Network"}, fr:["Installation réseau (LAN)","LAN, VLAN, câblage, Wi‑Fi bureau, points d'accès"], en:["Network setup (LAN)","LAN, VLAN, cabling, office Wi‑Fi, access points"]},
 
     // --- Wi‑Fi & internet ---
-    {id:"wifi_install", group:"wifi", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Installation Wi‑Fi zone","Routeur, MikroTik, hotspot avec tickets"], en:["Wi‑Fi zone installation","Router, MikroTik, voucher hotspot"]},
+    {id:"wifi_install", group:"wifi", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Installation Wi‑Fi zone","Routeur, MikroTik, hotspot avec tickets"], en:["Wi‑Fi zone installation","Router, MikroTik, voucher hotspot"], extras:[
+      {id:"ap_count", type:"number", min:1, max:200, fr:"Nombre de points d'accès", en:"Number of access points"},
+      {id:"ap_brand", type:"select", fr:"Marque du point d'accès", en:"Access point brand", options:"AP_BRANDS"}
+    ]},
     {id:"wifi_fix", group:"wifi", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Dépannage & maintenance Wi‑Fi","Connexion lente, coupures, configuration"], en:["Wi‑Fi repair & maintenance","Slow connection, drops, configuration"]},
     {id:"vouchers", group:"wifi", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Système de tickets / vouchers","Mikhmon, profils, impression des tickets"], en:["Ticket / voucher system","Mikhmon, profiles, printing vouchers"]},
     {id:"mikrotik", group:"wifi", tag:{fr:"Wi‑Fi",en:"Wi‑Fi"}, fr:["Configuration MikroTik uniquement","Vous avez le MikroTik, je le configure"], en:["MikroTik configuration only","You have the MikroTik, I configure it"]},

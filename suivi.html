@@ -208,6 +208,7 @@ function renderRequest(){
   if (reviewed) { $("rvStars").textContent = "★".repeat(r.rating) + "☆".repeat(5 - r.rating); $("rvShow").textContent = r.review || ""; }
 
   const rows = [[d.service, U.service(r.service, lang)]];
+  U.extrasFor(r.service).forEach(f => { const v = r.extras && r.extras[f.id]; if (v) rows.push([f[lang], v]); });
   if (r.pref_date || r.pref_time) rows.push([d.when, `${U.date(r.pref_date)}${r.pref_date && r.pref_time ? " " + d.at + " " : ""}${r.pref_time || ""}`]);
   rows.push([d.mode, r.mode === "site" ? d.site : d.remote]);
   rows.push([d.uses, r.uses === "computer" ? d.computer : d.phone]);

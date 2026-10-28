@@ -103,7 +103,7 @@ const FILTERS = [
   ["all","All", () => true]
 ];
 const ATTN = new Set(["new","receipt_sent","paid"]);
-const SEL = "id,code,token,created_at,updated_at,name,phone,service,place,device,description,mode,uses,pref_date,pref_time,urgency,status,price,admin_note,pay_method,pay_reference,receipt_path,receipt_at,paid_at,done_at,rating,review,reviewed_at";
+const SEL = "id,code,token,created_at,updated_at,name,phone,service,place,device,description,extras,mode,uses,pref_date,pref_time,urgency,status,price,admin_note,pay_method,pay_reference,receipt_path,receipt_at,paid_at,done_at,rating,review,reviewed_at";
 
 const sb = U.client(true);
 let rows = [], filter = "active", query = "", openIds = new Set(), knownIds = null, timer = null;
@@ -220,6 +220,7 @@ function card(r){
 function details(r){
   const out = [];
   const kv = [["Phone", r.phone], ["Service", U.service(r.service, "en")]];
+  U.extrasFor(r.service).forEach(f => { const v = r.extras && r.extras[f.id]; if (v) kv.push([f.en, v]); });
   if (r.pref_date || r.pref_time) kv.push(["Appointment", `${U.date(r.pref_date)} ${r.pref_time || ""}`.trim()]);
   kv.push(["Where", r.mode === "site" ? "On site" : "Remote"], ["Customer uses", r.uses === "computer" ? "Computer" : "Phone"],
     ["Urgency", {today:"Today", week:"This week", any:"No rush"}[r.urgency] || "—"]);

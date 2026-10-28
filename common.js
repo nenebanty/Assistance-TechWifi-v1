@@ -28,10 +28,14 @@
       { auth: { persistSession: !!persist, autoRefreshToken: !!persist } });
   };
 
+  U.serviceObj = id => (A.SERVICES.find(x => x.id === id) || null);
   U.service = function(id, lang){
-    const s = A.SERVICES.find(x => x.id === id);
+    const s = U.serviceObj(id);
     return s ? s[lang || "fr"][0] : (id || "");
   };
+  U.extrasFor = id => { const s = U.serviceObj(id); return (s && s.extras) ? s.extras : []; };
+  U.extraOptions = f => Array.isArray(f.options) ? f.options
+    : (typeof f.options === "string" && Array.isArray(A[f.options]) ? A[f.options] : []);
 
   U.money = function(n){
     if (n === null || n === undefined || n === "") return "";

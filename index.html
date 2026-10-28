@@ -58,6 +58,7 @@ header.page.client-hero .lang button[aria-pressed="true"]{background:var(--accen
         <label for="f-service"><span data-t="service"></span><select id="f-service" required></select></label>
         <label for="f-place"><span data-t="place"></span><input id="f-place" maxlength="120"></label>
       </div>
+      <div id="extras" class="extras-fields"></div>
       <label for="f-device"><span data-t="device"></span><input id="f-device" maxlength="120"></label>
       <label for="f-desc"><span data-t="desc"></span><textarea id="f-desc" maxlength="2000" required></textarea></label>
       <fieldset>
@@ -143,6 +144,7 @@ savedText:"Gardez ce code. Sur la page de suivi, vous verrez le prix, comment pa
 trackMine:"Voir ma demande",notifyWa:"Prévenir sur WhatsApp",copyLink:"Copier le lien de suivi",copied:"Lien copié",again:"Nouvelle demande",
 saveFailed:"La demande n'a pas pu être enregistrée (problème de connexion). Envoyez‑la plutôt sur WhatsApp :",sendWa:"Envoyer sur WhatsApp",
 errReq:"Remplissez votre nom, votre numéro, le service et la description.",errMany:"Trop de demandes avec ce numéro. Réessayez dans une heure ou écrivez sur WhatsApp.",
+extrasTitle:"Détails du service",errExtras:"Remplissez les détails demandés pour ce service.",
 reviewsEyebrow:"Avis clients",reviewsTitle:"Ils nous ont fait confiance",contact:"WhatsApp :",
 m:{head:"Nouvelle demande",code:"Code",name:"Nom",phone:"Téléphone",service:"Service",place:"Lieu",device:"Appareil",how:"Intervention",uses:"Utilise",when:"Rendez-vous",at:"à",urg:"Urgence",desc:"Problème",track:"Suivi"}},
 en:{title:"Need help? Send your request.",lede:"Business networks (MikroTik, Cisco, office LAN), Wi‑Fi zones & Starlink, phone flashing and unlocking, help for technicians. Fill in the form: you get a code to track your request, see the price and pay.",
@@ -157,12 +159,13 @@ savedText:"Keep this code. On the tracking page you will see the price, how to p
 trackMine:"View my request",notifyWa:"Notify on WhatsApp",copyLink:"Copy tracking link",copied:"Link copied",again:"New request",
 saveFailed:"The request could not be saved (connection problem). Send it on WhatsApp instead:",sendWa:"Send on WhatsApp",
 errReq:"Please fill in your name, number, service and description.",errMany:"Too many requests with this number. Try again in an hour or write on WhatsApp.",
+extrasTitle:"Service details",errExtras:"Please fill in the details for this service.",
 reviewsEyebrow:"Customer reviews",reviewsTitle:"What customers say",contact:"WhatsApp:",
 m:{head:"New request",code:"Code",name:"Name",phone:"Phone",service:"Service",place:"Place",device:"Device",how:"Where",uses:"Using",when:"Appointment",at:"at",urg:"Urgency",desc:"Problem",track:"Tracking"}}
 };
 
 let lang = U.store.get("lang", "fr") === "en" ? "en" : "fr";
-let selected = "", last = null, reviews = [];
+let selected = "", last = null, reviews = [], extraVals = {};
 const sb = U.client(false);
 
 document.querySelectorAll(".bizName").forEach(e => e.textContent = A.BUSINESS_NAME);
@@ -200,6 +203,7 @@ function render(){
   const opts = [h("option", {value:""}, t.anyTime)];
   for (let i = 7; i <= 22; i++) { const v = String(i).padStart(2,"0") + ":00"; opts.push(h("option", {value:v}, v)); }
   ts.replaceChildren(...opts); ts.value = tc;
+  renderExtras();
   renderReviews();
   if (last) $("waBtn").href = U.waLink(A.WHATSAPP_NUMBER, buildMessage(last.data, last.code, last.token));
 }
@@ -207,10 +211,30 @@ function setLang(l){ lang = l; U.store.set("lang", l); render(); }
 $("btnFr").onclick = () => setLang("fr"); $("btnEn").onclick = () => setLang("en");
 $("f-service").onchange = e => { selected = e.target.value; render(); };
 
+function renderExtras(){
+  const box = $("extras"); box.replaceChildren();
+  const extras = U.extrasFor($("f-service").value || selected);
+  if (!extras.length) return;
+  box.append(h("div", {class:"eyebrow"}, T[lang].extrasTitle));
+  extras.forEach(f => {
+    const id = "ex-" + f.id;
+    let input;
+    if (f.type === "select") input = h("select", {id}, h("option", {value:""}, "—"), ...U.extraOptions(f).map(o => h("option", {value:o}, o)));
+    else if (f.type === "number") input = h("input", {id, type:"number", inputmode:"numeric", min: f.min != null ? f.min : 0, max: f.max != null ? f.max : 9999});
+    else input = h("input", {id, type:"text", maxlength:120, placeholder: f.placeholder ? f.placeholder[lang] : ""});
+    if (extraVals[f.id] != null) input.value = extraVals[f.id];
+    const save = () => { extraVals[f.id] = input.value; };
+    input.addEventListener("input", save); input.addEventListener("change", save);
+    box.append(h("label", {for:id}, f[lang] + (f.optional ? "" : " *"), input));
+  });
+}
+
 function collect(){
-  return { lang, name: $("f-name").value.trim(), phone: $("f-phone").value.trim(), service: $("f-service").value,
+  const svc = $("f-service").value, extras = {};
+  U.extrasFor(svc).forEach(f => { const v = (extraVals[f.id] || "").toString().trim(); if (v) extras[f.id] = v; });
+  return { lang, name: $("f-name").value.trim(), phone: $("f-phone").value.trim(), service: svc,
     place: $("f-place").value.trim(), device: $("f-device").value.trim(), description: $("f-desc").value.trim(),
-    mode: radio("how"), uses: radio("uses"), pref_date: $("f-date").value, pref_time: $("f-time").value, urgency: radio("urg") };
+    mode: radio("how"), uses: radio("uses"), pref_date: $("f-date").value, pref_time: $("f-time").value, urgency: radio("urg"), extras };
 }
 
 function buildMessage(d, code, token){
@@ -218,6 +242,7 @@ function buildMessage(d, code, token){
   const lines = [`*${m.head}* – ${A.BUSINESS_NAME}`];
   if (code) lines.push(`${m.code}: ${code}`);
   lines.push(`${m.name}: ${d.name}`, `${m.phone}: ${d.phone}`, `${m.service}: ${U.service(d.service, lang)}`);
+  U.extrasFor(d.service).forEach(f => { const v = d.extras && d.extras[f.id]; if (v) lines.push(`${f[lang]}: ${v}`); });
   if (d.place) lines.push(`${m.place}: ${d.place}`);
   if (d.device) lines.push(`${m.device}: ${d.device}`);
   if (d.pref_date || d.pref_time) lines.push(`${m.when}: ${U.date(d.pref_date)}${d.pref_date && d.pref_time ? " " + m.at + " " : ""}${d.pref_time}`);
@@ -231,6 +256,7 @@ $("form").addEventListener("submit", async e => {
   e.preventDefault();
   const t = T[lang], d = collect();
   if (!d.name || d.phone.replace(/\D/g, "").length < 6 || !d.service || !d.description) { $("err").textContent = t.errReq; $("err").hidden = false; return; }
+  if (U.extrasFor(d.service).some(f => !f.optional && !(d.extras && d.extras[f.id]))) { $("err").textContent = t.errExtras; $("err").hidden = false; return; }
   $("err").hidden = true;
   const btn = $("submitBtn"); btn.disabled = true; btn.textContent = t.saving;
   try {
@@ -256,7 +282,7 @@ $("form").addEventListener("submit", async e => {
   } finally { btn.disabled = false; btn.textContent = t.submit; }
 });
 $("copyLink").onclick = () => last && U.copy(U.trackUrl(last.code, last.token), $("copyLink"), T[lang].copied);
-$("again").onclick = () => { $("form").reset(); selected = ""; last = null; $("result").hidden = true; $("fallback").hidden = true; $("form").hidden = false; $("stepServices").hidden = false; render(); };
+$("again").onclick = () => { $("form").reset(); selected = ""; last = null; extraVals = {}; $("result").hidden = true; $("fallback").hidden = true; $("form").hidden = false; $("stepServices").hidden = false; render(); };
 
 function renderReviews(){
   if (!reviews.length) { $("reviewsSec").hidden = true; return; }
