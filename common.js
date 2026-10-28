@@ -76,6 +76,29 @@
     set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
   };
 
+  // --- Dark / light theme ---
+  U.THEME_KEY = "atw_theme";
+  U.currentTheme = function(){
+    const set = document.documentElement.getAttribute("data-theme");
+    if (set === "dark" || set === "light") return set;
+    return (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  };
+  U.setTheme = function(t){
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem(U.THEME_KEY, t); } catch(e){}
+  };
+  U.wireThemeToggle = function(btn){
+    if (!btn) return;
+    const paint = () => {
+      const dark = U.currentTheme() === "dark";
+      btn.textContent = dark ? "☀️" : "🌙";
+      const label = dark ? "Mode clair / Light mode" : "Mode sombre / Dark mode";
+      btn.setAttribute("aria-label", label); btn.title = label;
+    };
+    btn.addEventListener("click", () => { U.setTheme(U.currentTheme() === "dark" ? "light" : "dark"); paint(); });
+    paint();
+  };
+
   U.rememberRequest = function(code, token){
     const list = U.store.get("my_requests", []).filter(r => r.code !== code);
     list.unshift({ code, token, at: Date.now() });

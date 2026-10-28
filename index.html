@@ -7,6 +7,7 @@
 <meta name="description" content="Wi‑Fi zone, MikroTik, flashing et déblocage de téléphone, aide aux techniciens. Envoyez votre demande en ligne.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="styles.css">
+<script>try{var t=localStorage.getItem('atw_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 </head>
 <body>
 <div class="wrap">
@@ -15,6 +16,7 @@
       <a class="brand" href="./"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="bizName"></span></a>
       <div class="top-actions">
         <a class="btn small" href="suivi.html" data-t="trackLink"></a>
+        <button type="button" class="btn small theme-btn" id="themeBtn" aria-label="Dark mode">🌙</button>
         <div class="lang" role="group" aria-label="Langue / Language">
           <button type="button" id="btnFr" aria-pressed="true">FR</button>
           <button type="button" id="btnEn" aria-pressed="false">EN</button>
@@ -254,6 +256,7 @@ async function loadReviews(){
   if (!sb) return;
   try { const { data } = await sb.rpc("get_reviews"); reviews = Array.isArray(data) ? data : []; renderReviews(); } catch(e){}
 }
+U.wireThemeToggle($("themeBtn"));
 render(); loadReviews();
 </script>
 </body>
