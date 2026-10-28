@@ -28,7 +28,7 @@
   <section id="stepServices">
     <div class="eyebrow" data-t="step1"></div>
     <h2 data-t="svcTitle"></h2>
-    <div class="services" id="services"></div>
+    <div id="services" class="svc-groups"></div>
   </section>
 
   <section>
@@ -162,11 +162,24 @@ function render(){
   document.querySelectorAll("[data-t]").forEach(el => { const k = el.dataset.t; if (typeof t[k] === "string") el.textContent = t[k]; });
   $("btnFr").setAttribute("aria-pressed", lang === "fr"); $("btnEn").setAttribute("aria-pressed", lang === "en");
   const box = $("services"); box.replaceChildren();
-  A.SERVICES.forEach(s => box.append(h("button", {type:"button", class:"svc", "aria-pressed": String(selected === s.id),
+  const groups = (A.GROUPS && A.GROUPS.length) ? A.GROUPS : [{id:null}];
+  const card = s => h("button", {type:"button", class:"svc", "aria-pressed": String(selected === s.id),
       onclick: () => { selected = s.id; $("f-service").value = s.id; render(); $("f-name").focus(); }},
-    h("span", {class:"tag"}, s.tag[lang]), h("b", null, s[lang][0]), h("span", null, s[lang][1]))));
+    h("span", {class:"tag"}, s.tag[lang]), h("b", null, s[lang][0]), h("span", null, s[lang][1]));
+  groups.forEach(g => {
+    const items = A.SERVICES.filter(s => (s.group || null) === g.id);
+    if (!items.length) return;
+    const grid = h("div", {class:"services"}, items.map(card));
+    box.append(h("div", {class:"svc-group"}, g.id ? h("h3", {class:"group-head"}, (g.icon ? g.icon + " " : "") + g[lang]) : null, grid));
+  });
   const sel = $("f-service"), cur = sel.value || selected;
-  sel.replaceChildren(h("option", {value:""}, "—"), ...A.SERVICES.map(s => h("option", {value:s.id}, s[lang][0])));
+  sel.replaceChildren(h("option", {value:""}, "—"));
+  groups.forEach(g => {
+    const items = A.SERVICES.filter(s => (s.group || null) === g.id);
+    if (!items.length) return;
+    if (g.id) sel.append(h("optgroup", {label: g[lang]}, items.map(s => h("option", {value:s.id}, s[lang][0]))));
+    else items.forEach(s => sel.append(h("option", {value:s.id}, s[lang][0])));
+  });
   sel.value = cur;
   const ts = $("f-time"), tc = ts.value;
   const opts = [h("option", {value:""}, t.anyTime)];
