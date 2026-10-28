@@ -32,6 +32,16 @@ body.admin header.page .btn{color:#eaf3ff;background:rgba(255,255,255,.10);borde
 .stat.money .v{color:var(--accent)}
 .stat.attn.hot{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
 .stat.attn.hot .v{color:var(--warn)}
+.viewtabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;width:max-content;max-width:100%}
+.viewtabs button{border:0;background:transparent;color:var(--muted);font:700 .9rem var(--body);padding:7px 18px;border-radius:999px;cursor:pointer}
+.viewtabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.cust{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.cust-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.cust-name{font-family:var(--display);font-weight:700;font-size:1.05rem;overflow-wrap:anywhere}
+.cust-phone{font:500 .9rem var(--mono);color:var(--muted);user-select:all}
+.cust-figs{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+.cust-figs b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.cust-paid b{color:var(--accent)}
 </style>
 </head>
 <body class="admin">
@@ -76,10 +86,12 @@ body.admin header.page .btn{color:#eaf3ff;background:rgba(255,255,255,.10);borde
   <!-- dashboard -->
   <section id="dash" hidden>
     <div class="stats" id="stats"></div>
+    <div class="viewtabs" id="viewtabs"></div>
     <div class="chips" id="chips"></div>
     <label for="search" style="max-width:420px">Search<input id="search" type="search" placeholder="Name, phone or code"></label>
     <p class="note" id="lastUpdate"></p>
     <div class="list" id="list"></div>
+    <div class="list" id="customers" hidden></div>
   </section>
 
   <p class="msg err" id="fatal" hidden></p>
@@ -106,7 +118,7 @@ const ATTN = new Set(["new","receipt_sent","paid"]);
 const SEL = "id,code,token,created_at,updated_at,name,phone,service,place,device,description,extras,mode,uses,pref_date,pref_time,urgency,status,price,admin_note,pay_method,pay_reference,receipt_path,receipt_at,paid_at,done_at,rating,review,reviewed_at";
 
 const sb = U.client(true);
-let rows = [], filter = "active", query = "", openIds = new Set(), knownIds = null, timer = null;
+let rows = [], filter = "active", query = "", openIds = new Set(), knownIds = null, timer = null, mainView = "requests";
 
 document.querySelectorAll(".bizName").forEach(e => e.textContent = A.BUSINESS_NAME);
 
@@ -183,15 +195,61 @@ function renderStats(){
   ];
   $("stats").replaceChildren(...tiles.map(t => h("div", {class:"stat " + t.cls}, h("span", {class:"k"}, t.k), h("span", {class:"v"}, t.v))));
 }
+function custKey(phone){ return U.waNumber(phone) || (phone || ""); }
+function buildCustomers(){
+  const map = new Map();
+  rows.forEach(r => {
+    const k = custKey(r.phone);
+    let c = map.get(k);
+    if (!c) { c = { key:k, name:r.name, phone:r.phone, jobs:0, paid:0, last:r.created_at }; map.set(k, c); }
+    c.jobs++;
+    if (["paid","done"].includes(r.status)) c.paid += Number(r.price || 0);
+    if (new Date(r.created_at) >= new Date(c.last)) { c.last = r.created_at; c.name = r.name; c.phone = r.phone; }
+  });
+  return [...map.values()].sort((a, b) => new Date(b.last) - new Date(a.last));
+}
+function renderViewTabs(){
+  const custCount = new Set(rows.map(r => custKey(r.phone))).size;
+  const tabs = [["requests", "Requests"], ["customers", "Customers (" + custCount + ")"]];
+  $("viewtabs").replaceChildren(...tabs.map(([k, label]) =>
+    h("button", {type:"button", "aria-pressed": String(mainView === k), onclick: () => { mainView = k; render(); }}, label)));
+}
+function custCard(c){
+  const first = (c.name || "").split(" ")[0];
+  return h("div", {class:"cust"},
+    h("div", {class:"cust-top"},
+      h("div", null, h("div", {class:"cust-name"}, c.name || "—"), h("div", {class:"cust-phone"}, c.phone)),
+      h("a", {class:"btn wa small", target:"_blank", rel:"noopener", href: U.waLink(c.phone, `Bonjour ${first}, c'est ${A.BUSINESS_NAME}.`)}, "WhatsApp")),
+    h("div", {class:"cust-figs"},
+      h("span", null, "Jobs: ", h("b", null, String(c.jobs))),
+      h("span", {class:"cust-paid"}, "Paid: ", h("b", null, U.money(c.paid) || ("0 " + A.CURRENCY))),
+      h("span", null, "Last: ", h("b", null, U.dateTime(c.last)))),
+    h("div", {class:"btns"},
+      h("button", {type:"button", class:"btn small", onclick: () => { mainView = "requests"; filter = "all"; query = c.phone; $("search").value = c.phone; render(); }}, "See requests")));
+}
+function renderCustomers(){
+  const q = query.toLowerCase();
+  const list = buildCustomers().filter(c => !q || (c.name || "").toLowerCase().includes(q) || (c.phone || "").toLowerCase().includes(q));
+  if (!list.length) { $("customers").replaceChildren(h("div", {class:"empty"}, rows.length ? "No customers match your search." : "No customers yet. When someone sends a request, they appear here.")); return; }
+  $("customers").replaceChildren(...list.map(custCard));
+}
 function render(){
   renderStats();
+  renderViewTabs();
+  const need = rows.filter(r => ATTN.has(r.status)).length;
+  document.title = (need ? `(${need}) ` : "") + "Dashboard · " + A.BUSINESS_NAME;
+
+  if (mainView === "customers") {
+    $("chips").hidden = true; $("list").hidden = true; $("customers").hidden = false;
+    renderCustomers(); return;
+  }
+  $("customers").hidden = true; $("chips").hidden = false; $("list").hidden = false;
+
   const counts = c => rows.filter(FILTERS.find(f => f[0] === c)[2]).length;
   $("chips").replaceChildren(...FILTERS.map(([k, label]) => {
     const n = counts(k);
     return h("button", {type:"button", class:"chip" + (ATTN.has(k) && n ? " attn" : ""), "aria-pressed": String(filter === k), onclick: () => { filter = k; render(); }}, label, h("b", null, n));
   }));
-  const need = rows.filter(r => ATTN.has(r.status)).length;
-  document.title = (need ? `(${need}) ` : "") + "Dashboard · " + A.BUSINESS_NAME;
 
   const f = FILTERS.find(x => x[0] === filter)[2];
   const q = query.toLowerCase();
