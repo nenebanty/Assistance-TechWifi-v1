@@ -42,6 +42,20 @@ body.admin header.page .btn{color:#eaf3ff;background:rgba(255,255,255,.10);borde
 .cust-figs{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
 .cust-figs b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .cust-paid b{color:var(--accent)}
+.st-pending{background:var(--warn-bg);color:var(--warn)}
+#billModal:not(:empty){margin-bottom:16px}
+.bill-row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.bill-row .req-title{font-family:var(--display);font-weight:700;overflow-wrap:anywhere}
+.bill-sub{grid-column:1 / -1;color:var(--muted);font-size:.88rem;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.bill-num{font:500 .85rem var(--mono)}
+.bill-amt{font:700 1.05rem var(--display);font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.bill-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.li-list{display:flex;flex-direction:column;gap:10px;margin:8px 0}
+.li-row{display:grid;grid-template-columns:1fr 60px 108px auto;gap:8px;align-items:end}
+@media (max-width:560px){.li-row{grid-template-columns:1fr 1fr}}
+.li-row label{font-size:.78rem;gap:3px}
+.li-total{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;align-self:center;padding-bottom:10px}
+.bill-total{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--display);font-weight:700;font-size:1.2rem;border-top:1px solid var(--line);padding-top:10px;margin-top:6px;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body class="admin">
@@ -92,6 +106,12 @@ body.admin header.page .btn{color:#eaf3ff;background:rgba(255,255,255,.10);borde
     <p class="note" id="lastUpdate"></p>
     <div class="list" id="list"></div>
     <div class="list" id="customers" hidden></div>
+    <div id="billing" hidden>
+      <div id="billModal"></div>
+      <div class="btns" id="billActions"></div>
+      <div class="chips" id="billChips"></div>
+      <div class="list" id="billList"></div>
+    </div>
   </section>
 
   <p class="msg err" id="fatal" hidden></p>
@@ -170,6 +190,7 @@ async function load(auto){
     else if (changed.length) { toast("Receipt received: " + changed[0].code); beep(); }
   }
   knownIds = ids; rows = data;
+  try { await loadBilling(); } catch(e) {}
   $("lastUpdate").textContent = "Updated " + U.dateTime(new Date()) + " · refreshes every 30 seconds";
   render();
 }
@@ -210,7 +231,7 @@ function buildCustomers(){
 }
 function renderViewTabs(){
   const custCount = new Set(rows.map(r => custKey(r.phone))).size;
-  const tabs = [["requests", "Requests"], ["customers", "Customers (" + custCount + ")"]];
+  const tabs = [["requests", "Requests"], ["customers", "Customers (" + custCount + ")"], ["billing", "Billing"]];
   $("viewtabs").replaceChildren(...tabs.map(([k, label]) =>
     h("button", {type:"button", "aria-pressed": String(mainView === k), onclick: () => { mainView = k; render(); }}, label)));
 }
@@ -239,11 +260,10 @@ function render(){
   const need = rows.filter(r => ATTN.has(r.status)).length;
   document.title = (need ? `(${need}) ` : "") + "Dashboard · " + A.BUSINESS_NAME;
 
-  if (mainView === "customers") {
-    $("chips").hidden = true; $("list").hidden = true; $("customers").hidden = false;
-    renderCustomers(); return;
-  }
-  $("customers").hidden = true; $("chips").hidden = false; $("list").hidden = false;
+  $("chips").hidden = $("list").hidden = $("customers").hidden = $("billing").hidden = true;
+  if (mainView === "customers") { $("customers").hidden = false; renderCustomers(); return; }
+  if (mainView === "billing") { $("billing").hidden = false; renderBilling(); return; }
+  $("chips").hidden = false; $("list").hidden = false;
 
   const counts = c => rows.filter(FILTERS.find(f => f[0] === c)[2]).length;
   $("chips").replaceChildren(...FILTERS.map(([k, label]) => {
@@ -382,6 +402,184 @@ $("settingsForm").addEventListener("submit", async e => {
   const m = $("setMsg"); m.hidden = false;
   m.className = "msg " + (error ? "err" : "ok"); m.textContent = error ? "Not saved: " + error.message : "Saved. Customers will see this text.";
 });
+
+// ---------- Billing: invoices & manual payments ----------
+const SEL_INV = "id,number,created_at,request_id,customer_name,customer_phone,issue_date,due_date,notes,status,total";
+const SEL_PAY = "id,number,created_at,invoice_id,customer_name,customer_phone,amount,method,pay_for,paid_date,note";
+let invoices = [], payments = [], billSettings = {}, billSub = "invoices";
+const money0 = n => U.money(n) || ("0 " + A.CURRENCY);
+const today = () => { const n = new Date(); return new Date(n - n.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+
+async function loadBilling(){
+  const [inv, pay, setg] = await Promise.all([
+    sb.from("invoices").select(SEL_INV).order("created_at", {ascending:false}).limit(500),
+    sb.from("payments").select(SEL_PAY).order("created_at", {ascending:false}).limit(500),
+    sb.from("settings").select("biz_address,biz_email,biz_taxid,invoice_footer").eq("id",1).maybeSingle()
+  ]);
+  if (!inv.error) invoices = inv.data || [];
+  if (!pay.error) payments = pay.data || [];
+  if (!setg.error && setg.data) billSettings = setg.data;
+}
+async function billUpdate(table, id, patch, msg){
+  const { error } = await sb.from(table).update(patch).eq("id", id);
+  if (error) { toast("Not saved: " + error.message); return; }
+  toast(msg); await loadBilling(); renderBilling();
+}
+async function billDelete(table, id, msg){
+  const { error } = await sb.from(table).delete().eq("id", id);
+  if (error) { toast("Not deleted: " + error.message); return; }
+  toast(msg); await loadBilling(); renderBilling();
+}
+function closeModal(){ $("billModal").replaceChildren(); }
+
+function renderBilling(){
+  $("billActions").replaceChildren(
+    h("button", {type:"button", class:"btn primary small", onclick: () => openInvoiceForm()}, "+ New invoice"),
+    h("button", {type:"button", class:"btn small", onclick: () => openPaymentForm()}, "+ Record payment"),
+    h("button", {type:"button", class:"btn small", onclick: () => openBillingSettings()}, "Invoice settings"));
+  const subs = [["invoices", "Invoices (" + invoices.length + ")"], ["payments", "Payments (" + payments.length + ")"]];
+  $("billChips").replaceChildren(...subs.map(([k, label]) =>
+    h("button", {type:"button", class:"chip", "aria-pressed": String(billSub === k), onclick: () => { billSub = k; renderBilling(); }}, label)));
+  const q = query.toLowerCase();
+  if (billSub === "invoices") {
+    const list = invoices.filter(i => !q || [i.number, i.customer_name, i.customer_phone].some(v => (v || "").toLowerCase().includes(q)));
+    $("billList").replaceChildren(...(list.length ? list.map(invRow) : [h("div", {class:"empty"}, invoices.length ? "No invoices match." : "No invoices yet. Tap “+ New invoice” to make one.")]));
+  } else {
+    const list = payments.filter(p => !q || [p.number, p.customer_name, p.customer_phone, p.method].some(v => (v || "").toLowerCase().includes(q)));
+    $("billList").replaceChildren(...(list.length ? list.map(payRow) : [h("div", {class:"empty"}, payments.length ? "No payments match." : "No payments yet. Tap “+ Record payment”.")]));
+  }
+}
+function invRow(i){
+  const label = i.status === "pending" ? "Pending" : i.status === "paid" ? "Paid" : "Cancelled";
+  return h("div", {class:"bill-row"},
+    h("div", {class:"req-title"}, i.customer_name),
+    h("span", {class:"pill st-" + i.status}, label),
+    h("div", {class:"bill-sub"}, h("span", {class:"bill-num"}, i.number), h("span", null, U.date(i.issue_date)), h("span", {class:"bill-amt"}, money0(i.total))),
+    h("div", {class:"bill-actions"},
+      h("a", {class:"btn small", href:`billing-print.html?type=invoice&id=${i.id}`, target:"_blank", rel:"noopener"}, "Print / PDF"),
+      i.status === "pending" ? h("button", {type:"button", class:"btn small", onclick: () => openPaymentForm(i)}, "Record payment") : null,
+      i.status !== "cancelled" ? confirmBtn("Cancel", "Yes, cancel", () => billUpdate("invoices", i.id, {status:"cancelled"}, "Invoice cancelled"), true) : null,
+      confirmBtn("Delete", "Yes, delete", () => billDelete("invoices", i.id, "Invoice deleted"), true)));
+}
+function payRow(p){
+  return h("div", {class:"bill-row"},
+    h("div", {class:"req-title"}, p.customer_name || "—"),
+    h("span", {class:"bill-amt"}, money0(p.amount)),
+    h("div", {class:"bill-sub"}, h("span", {class:"bill-num"}, p.number), p.method ? h("span", null, p.method) : null, h("span", null, U.date(p.paid_date)), p.pay_for ? h("span", null, p.pay_for) : null),
+    h("div", {class:"bill-actions"},
+      h("a", {class:"btn small", href:`billing-print.html?type=receipt&id=${p.id}`, target:"_blank", rel:"noopener"}, "Print receipt"),
+      confirmBtn("Delete", "Yes, delete", () => billDelete("payments", p.id, "Payment deleted"), true)));
+}
+
+function openInvoiceForm(){
+  let it = [{description:"", qty:"1", unit_price:""}];
+  const nameI = h("input", {maxlength:100}), phoneI = h("input", {maxlength:30});
+  const issueI = h("input", {type:"date", value: today()}), dueI = h("input", {type:"date"});
+  const notesI = h("textarea", {maxlength:1000});
+  const itemsBox = h("div", {class:"li-list"}), totalEl = h("span"), err = h("p", {class:"msg err", hidden:true});
+  function recalc(){ let t = 0; it.forEach(r => t += Math.round((parseFloat(r.qty)||0) * (parseFloat(r.unit_price)||0))); totalEl.textContent = money0(t); }
+  function renderItems(){
+    itemsBox.replaceChildren(...it.map((r, idx) => {
+      const d = h("input", {value:r.description, placeholder:"Service or equipment", maxlength:200});
+      const q = h("input", {type:"number", min:"0", step:"1", value:r.qty, inputmode:"numeric"});
+      const u = h("input", {type:"number", min:"0", step:"1000", value:r.unit_price, inputmode:"numeric", placeholder:A.CURRENCY});
+      const lt = h("span", {class:"li-total"});
+      const upd = () => { r.description = d.value; r.qty = q.value; r.unit_price = u.value; lt.textContent = money0(Math.round((parseFloat(q.value)||0)*(parseFloat(u.value)||0))); recalc(); };
+      [d,q,u].forEach(e => e.addEventListener("input", upd)); upd();
+      return h("div", {class:"li-row"},
+        h("label", null, "Description", d), h("label", null, "Qty", q), h("label", null, "Unit " + A.CURRENCY, u),
+        h("div", null, lt, it.length > 1 ? h("button", {type:"button", class:"btn small danger", title:"Remove", onclick: () => { it.splice(idx,1); renderItems(); recalc(); }}, "✕") : null));
+    }));
+  }
+  renderItems(); recalc();
+  const reqSel = h("select", null, h("option", {value:""}, "—"), ...rows.map(r => h("option", {value:r.id}, `${r.code} · ${r.name} · ${U.service(r.service,"en")}`)));
+  reqSel.addEventListener("change", () => {
+    const r = rows.find(x => String(x.id) === reqSel.value); if (!r) return;
+    nameI.value = r.name; phoneI.value = r.phone;
+    it = [{description: U.service(r.service, "en"), qty:"1", unit_price: r.price != null ? String(r.price) : ""}];
+    renderItems(); recalc();
+  });
+  const form = h("form", {class:"panel"},
+    h("h2", null, "New invoice"),
+    h("label", null, "From a request (optional)", reqSel),
+    h("div", {class:"row"}, h("label", null, "Customer name *", nameI), h("label", null, "Phone", phoneI)),
+    h("div", {class:"row"}, h("label", null, "Issue date", issueI), h("label", null, "Due date", dueI)),
+    h("div", null, h("div", {class:"eyebrow"}, "Items"), itemsBox,
+      h("button", {type:"button", class:"btn small", onclick: () => { it.push({description:"", qty:"1", unit_price:""}); renderItems(); }}, "+ Add line")),
+    h("div", {class:"bill-total"}, h("span", null, "Total"), totalEl),
+    h("label", null, "Notes (optional)", notesI), err,
+    h("div", {class:"btns"}, h("button", {type:"submit", class:"btn primary"}, "Create invoice"), h("button", {type:"button", class:"btn", onclick: closeModal}, "Cancel")));
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!nameI.value.trim()) { err.textContent = "Enter the customer name."; err.hidden = false; return; }
+    const items = it.map(r => ({description:(r.description||"").trim(), qty:parseFloat(r.qty)||0, unit_price:parseFloat(r.unit_price)||0})).filter(r => r.description && r.qty > 0);
+    if (!items.length) { err.textContent = "Add at least one line with a description and quantity."; err.hidden = false; return; }
+    err.hidden = true; const btn = form.querySelector("button[type=submit]"); btn.disabled = true;
+    const { data, error } = await sb.rpc("create_invoice", {p:{request_id: reqSel.value || null, customer_name: nameI.value.trim(), customer_phone: phoneI.value.trim(), issue_date: issueI.value, due_date: dueI.value, notes: notesI.value.trim(), items}});
+    btn.disabled = false;
+    if (error) { err.textContent = "Not saved: " + error.message; err.hidden = false; return; }
+    closeModal(); toast("Invoice " + data.number + " created"); await loadBilling(); billSub = "invoices"; renderBilling();
+    window.open(`billing-print.html?type=invoice&id=${data.id}`, "_blank", "noopener");
+  });
+  $("billModal").replaceChildren(form); form.scrollIntoView({behavior:"smooth", block:"start"}); nameI.focus();
+}
+
+function openPaymentForm(invoice){
+  const invSel = h("select", null, h("option", {value:""}, "— none —"),
+    ...invoices.filter(i => i.status !== "cancelled").map(i => h("option", {value:i.id}, `${i.number} · ${i.customer_name} · ${money0(i.total)} · ${i.status}`)));
+  const nameI = h("input", {maxlength:100}), phoneI = h("input", {maxlength:30});
+  const amtI = h("input", {type:"number", min:"0", step:"1000", inputmode:"numeric"});
+  const methodI = h("select", null, ...["Cash","Orange Money","MTN MoMo","Bank","Other"].map(m => h("option", {value:m}, m)));
+  const numI = h("input", {maxlength:40, placeholder:"auto if blank"});
+  const dateI = h("input", {type:"date", value: today()});
+  const forI = h("input", {maxlength:80}), noteI = h("input", {maxlength:500});
+  const err = h("p", {class:"msg err", hidden:true});
+  function prefill(i){ if (!i) return; nameI.value = i.customer_name || ""; phoneI.value = i.customer_phone || "";
+    const paid = payments.filter(p => p.invoice_id === i.id).reduce((s,p) => s + Number(p.amount||0), 0);
+    amtI.value = String(Math.max(0, Number(i.total) - paid)); forI.value = "Invoice " + i.number; }
+  invSel.addEventListener("change", () => prefill(invoices.find(x => String(x.id) === invSel.value)));
+  if (invoice) { invSel.value = String(invoice.id); prefill(invoice); }
+  const form = h("form", {class:"panel"},
+    h("h2", null, "Record a payment"),
+    h("label", null, "For invoice (optional)", invSel),
+    h("div", {class:"row"}, h("label", null, "Customer name", nameI), h("label", null, "Phone", phoneI)),
+    h("div", {class:"row"}, h("label", null, "Amount (" + A.CURRENCY + ") *", amtI), h("label", null, "Method", methodI)),
+    h("div", {class:"row"}, h("label", null, "Receipt number", numI), h("label", null, "Date", dateI)),
+    h("label", null, "Payment for", forI), h("label", null, "Note (optional)", noteI), err,
+    h("div", {class:"btns"}, h("button", {type:"submit", class:"btn primary"}, "Save payment"), h("button", {type:"button", class:"btn", onclick: closeModal}, "Cancel")));
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const amt = parseFloat(amtI.value);
+    if (amtI.value === "" || !(amt >= 0)) { err.textContent = "Enter the amount received."; err.hidden = false; return; }
+    err.hidden = true; const btn = form.querySelector("button[type=submit]"); btn.disabled = true;
+    const { data, error } = await sb.rpc("record_payment", {p:{invoice_id: invSel.value || null, customer_name: nameI.value.trim(), customer_phone: phoneI.value.trim(), amount: Math.round(amt), method: methodI.value, number: numI.value.trim(), paid_date: dateI.value, pay_for: forI.value.trim(), note: noteI.value.trim()}});
+    btn.disabled = false;
+    if (error) { err.textContent = "Not saved: " + error.message; err.hidden = false; return; }
+    closeModal(); toast("Payment " + data.number + " recorded"); await loadBilling(); billSub = "payments"; renderBilling();
+    window.open(`billing-print.html?type=receipt&id=${data.id}`, "_blank", "noopener");
+  });
+  $("billModal").replaceChildren(form); form.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function openBillingSettings(){
+  const addr = h("textarea", {maxlength:300}), email = h("input", {maxlength:120}), tax = h("input", {maxlength:60}), foot = h("textarea", {maxlength:300});
+  addr.value = billSettings.biz_address || ""; email.value = billSettings.biz_email || ""; tax.value = billSettings.biz_taxid || ""; foot.value = billSettings.invoice_footer || "";
+  const msg = h("p", {class:"msg", hidden:true});
+  const form = h("form", {class:"panel"},
+    h("h2", null, "Invoice settings"),
+    h("p", {class:"note"}, "These appear on your printed invoices and receipts, under your business name and WhatsApp."),
+    h("label", null, "Business address", addr),
+    h("div", {class:"row"}, h("label", null, "Email", email), h("label", null, "Tax / NIF number (optional)", tax)),
+    h("label", null, "Footer line", foot), msg,
+    h("div", {class:"btns"}, h("button", {type:"submit", class:"btn primary"}, "Save"), h("button", {type:"button", class:"btn", onclick: closeModal}, "Close")));
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const { error } = await sb.from("settings").update({biz_address: addr.value.trim() || null, biz_email: email.value.trim() || null, biz_taxid: tax.value.trim() || null, invoice_footer: foot.value.trim() || null}).eq("id", 1);
+    msg.hidden = false; msg.className = "msg " + (error ? "err" : "ok"); msg.textContent = error ? "Not saved: " + error.message : "Saved.";
+    if (!error) await loadBilling();
+  });
+  $("billModal").replaceChildren(form); form.scrollIntoView({behavior:"smooth", block:"start"});
+}
 
 U.wireThemeToggle($("themeBtn"));
 start();
