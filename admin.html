@@ -22,6 +22,15 @@ body.admin header.page > *{position:relative;z-index:1}
 body.admin header.page h1{margin:8px 0 0}
 .hero-sub{margin:4px 0 0;color:var(--muted);font-size:.95rem;font-weight:700}
 .hero-sub .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:7px;vertical-align:middle}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:560px){.stats{grid-template-columns:1fr 1fr}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat .k{font:500 .7rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font:700 1.35rem var(--display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.1}
+.stat.money{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.stat.money .v{color:var(--accent)}
+.stat.attn.hot{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+.stat.attn.hot .v{color:var(--warn)}
 </style>
 </head>
 <body class="admin">
@@ -62,6 +71,7 @@ body.admin header.page h1{margin:8px 0 0}
 
   <!-- dashboard -->
   <section id="dash" hidden>
+    <div class="stats" id="stats"></div>
     <div class="chips" id="chips"></div>
     <label for="search" style="max-width:420px">Search<input id="search" type="search" placeholder="Name, phone or code"></label>
     <p class="note" id="lastUpdate"></p>
@@ -155,7 +165,22 @@ async function update(id, patch, okMsg){
 }
 
 // ---------- render ----------
+function sameMonth(ts){ if (!ts) return false; const d = new Date(ts), n = new Date(); return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth(); }
+function renderStats(){
+  const earned = rows.filter(r => ["paid","done"].includes(r.status) && sameMonth(r.paid_at)).reduce((s,r) => s + Number(r.price || 0), 0);
+  const doneMonth = rows.filter(r => r.status === "done" && sameMonth(r.done_at)).length;
+  const active = rows.filter(r => !["done","cancelled"].includes(r.status)).length;
+  const attn = rows.filter(r => ATTN.has(r.status)).length;
+  const tiles = [
+    {cls:"money", k:"Earned this month", v:U.money(earned) || ("0 " + A.CURRENCY)},
+    {cls:"", k:"Jobs done this month", v:String(doneMonth)},
+    {cls:"", k:"Active jobs", v:String(active)},
+    {cls:"attn" + (attn ? " hot" : ""), k:"Needs attention", v:String(attn)}
+  ];
+  $("stats").replaceChildren(...tiles.map(t => h("div", {class:"stat " + t.cls}, h("span", {class:"k"}, t.k), h("span", {class:"v"}, t.v))));
+}
 function render(){
+  renderStats();
   const counts = c => rows.filter(FILTERS.find(f => f[0] === c)[2]).length;
   $("chips").replaceChildren(...FILTERS.map(([k, label]) => {
     const n = counts(k);
