@@ -7,8 +7,24 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="styles.css">
+<style>
+/* Professional networking look — admin dashboard only */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgMzYwIDM2MCI+CiAgPGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMGI3YThhIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI0OCIgeTE9IjcwIiB4Mj0iMTcwIiB5Mj0iNDgiLz4KICAgIDxsaW5lIHgxPSIxNzAiIHkxPSI0OCIgeDI9IjMwMCIgeTI9Ijk2Ii8+CiAgICA8bGluZSB4MT0iMTcwIiB5MT0iNDgiIHgyPSIxNjAiIHkyPSIxODAiLz4KICAgIDxsaW5lIHgxPSIxNjAiIHkxPSIxODAiIHgyPSI3MCIgeTI9IjI2MiIvPgogICAgPGxpbmUgeDE9IjE2MCIgeTE9IjE4MCIgeDI9IjI4NiIgeTI9IjIzNiIvPgogICAgPGxpbmUgeDE9IjcwIiB5MT0iMjYyIiB4Mj0iNDgiIHkyPSI3MCIvPgogICAgPGxpbmUgeDE9IjMwMCIgeTE9Ijk2IiB4Mj0iMjg2IiB5Mj0iMjM2Ii8+CiAgICA8bGluZSB4MT0iNzAiIHkxPSIyNjIiIHgyPSIxOTAiIHkyPSIzMTAiLz4KICAgIDxsaW5lIHgxPSIxOTAiIHkxPSIzMTAiIHgyPSIyODYiIHkyPSIyMzYiLz4KICA8L2c+CiAgPGcgZmlsbD0iIzBiN2E4YSI+CiAgICA8Y2lyY2xlIGN4PSI0OCIgY3k9IjcwIiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjMwMCIgY3k9Ijk2IiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjcwIiBjeT0iMjYyIiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjI4NiIgY3k9IjIzNiIgcj0iNC41Ii8+CiAgICA8Y2lyY2xlIGN4PSIxOTAiIGN5PSIzMTAiIHI9IjQuNSIvPgogIDwvZz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiMwYjdhOGEiIHN0cm9rZS13aWR0aD0iMiI+CiAgICA8cmVjdCB4PSIxNTIiIHk9IjM2IiB3aWR0aD0iMzYiIGhlaWdodD0iMjQiIHJ4PSI0Ii8+CiAgICA8Y2lyY2xlIGN4PSIxNjAiIGN5PSI0OCIgcj0iMS42IiBmaWxsPSIjMGI3YThhIi8+CiAgICA8Y2lyY2xlIGN4PSIxNjgiIGN5PSI0OCIgcj0iMS42IiBmaWxsPSIjMGI3YThhIi8+CiAgICA8cmVjdCB4PSIxNDAiIHk9IjE2NiIgd2lkdGg9IjQwIiBoZWlnaHQ9IjI4IiByeD0iNSIvPgogICAgPGxpbmUgeDE9IjE0OCIgeTE9IjE4NiIgeDI9IjE3MiIgeTI9IjE4NiIvPgogIDwvZz4KPC9zdmc+Cg==");background-size:360px 360px;background-position:center;opacity:.06}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body::before{opacity:.12}}
+:root[data-theme="dark"] body::before{opacity:.12}
+body.admin header.page{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;
+  padding:20px 18px;background:linear-gradient(135deg,rgba(11,122,138,.16),rgba(11,122,138,.02))}
+body.admin header.page::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzNjAiIGhlaWdodD0iMzYwIiB2aWV3Qm94PSIwIDAgMzYwIDM2MCI+CiAgPGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMGI3YThhIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj4KICAgIDxsaW5lIHgxPSI0OCIgeTE9IjcwIiB4Mj0iMTcwIiB5Mj0iNDgiLz4KICAgIDxsaW5lIHgxPSIxNzAiIHkxPSI0OCIgeDI9IjMwMCIgeTI9Ijk2Ii8+CiAgICA8bGluZSB4MT0iMTcwIiB5MT0iNDgiIHgyPSIxNjAiIHkyPSIxODAiLz4KICAgIDxsaW5lIHgxPSIxNjAiIHkxPSIxODAiIHgyPSI3MCIgeTI9IjI2MiIvPgogICAgPGxpbmUgeDE9IjE2MCIgeTE9IjE4MCIgeDI9IjI4NiIgeTI9IjIzNiIvPgogICAgPGxpbmUgeDE9IjcwIiB5MT0iMjYyIiB4Mj0iNDgiIHkyPSI3MCIvPgogICAgPGxpbmUgeDE9IjMwMCIgeTE9Ijk2IiB4Mj0iMjg2IiB5Mj0iMjM2Ii8+CiAgICA8bGluZSB4MT0iNzAiIHkxPSIyNjIiIHgyPSIxOTAiIHkyPSIzMTAiLz4KICAgIDxsaW5lIHgxPSIxOTAiIHkxPSIzMTAiIHgyPSIyODYiIHkyPSIyMzYiLz4KICA8L2c+CiAgPGcgZmlsbD0iIzBiN2E4YSI+CiAgICA8Y2lyY2xlIGN4PSI0OCIgY3k9IjcwIiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjMwMCIgY3k9Ijk2IiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjcwIiBjeT0iMjYyIiByPSI0LjUiLz4KICAgIDxjaXJjbGUgY3g9IjI4NiIgY3k9IjIzNiIgcj0iNC41Ii8+CiAgICA8Y2lyY2xlIGN4PSIxOTAiIGN5PSIzMTAiIHI9IjQuNSIvPgogIDwvZz4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiMwYjdhOGEiIHN0cm9rZS13aWR0aD0iMiI+CiAgICA8cmVjdCB4PSIxNTIiIHk9IjM2IiB3aWR0aD0iMzYiIGhlaWdodD0iMjQiIHJ4PSI0Ii8+CiAgICA8Y2lyY2xlIGN4PSIxNjAiIGN5PSI0OCIgcj0iMS42IiBmaWxsPSIjMGI3YThhIi8+CiAgICA8Y2lyY2xlIGN4PSIxNjgiIGN5PSI0OCIgcj0iMS42IiBmaWxsPSIjMGI3YThhIi8+CiAgICA8cmVjdCB4PSIxNDAiIHk9IjE2NiIgd2lkdGg9IjQwIiBoZWlnaHQ9IjI4IiByeD0iNSIvPgogICAgPGxpbmUgeDE9IjE0OCIgeTE9IjE4NiIgeDI9IjE3MiIgeTI9IjE4NiIvPgogIDwvZz4KPC9zdmc+Cg==") right -36px center/300px no-repeat;opacity:.16;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 55%);mask-image:linear-gradient(90deg,transparent,#000 55%)}
+body.admin header.page > *{position:relative;z-index:1}
+body.admin header.page h1{margin:8px 0 0}
+.hero-sub{margin:4px 0 0;color:var(--muted);font-size:.95rem;font-weight:700}
+.hero-sub .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:7px;vertical-align:middle}
+</style>
 </head>
-<body>
+<body class="admin">
 <div class="wrap wide">
   <header class="page">
     <div class="top">
@@ -20,6 +36,7 @@
       </div>
     </div>
     <h1>Dashboard</h1>
+    <p class="hero-sub"><span class="dot"></span>Network &amp; tech service · requests, prices, payments</p>
   </header>
 
   <!-- login -->
